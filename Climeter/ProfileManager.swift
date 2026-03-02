@@ -1,0 +1,69 @@
+import Foundation
+import SwiftUI
+
+class ProfileManager: ObservableObject {
+    @Published var activeProfile: Profile?
+    @Published var isAuthenticated: Bool = false
+
+    private var profiles: [Profile] = []
+
+    init() {
+        loadProfiles()
+        setupActiveProfile()
+        syncCLICredentials()
+        updateAuthenticationStatus()
+    }
+
+    private func loadProfiles() {
+        profiles = ProfileStore.loadProfiles()
+
+        // If no profiles exist, create a default profile
+        if profiles.isEmpty {
+            let defaultProfile = Profile(name: "Default", autoStartSession: false)
+            profiles = [defaultProfile]
+            ProfileStore.saveProfiles(profiles)
+            ProfileStore.saveActiveProfileID(defaultProfile.id)
+        }
+    }
+
+    private func setupActiveProfile() {
+        // Try to load saved active profile ID
+        if let activeID = ProfileStore.loadActiveProfileID(),
+           let profile = profiles.first(where: { $0.id == activeID }) {
+            activeProfile = profile
+        } else if let firstProfile = profiles.first {
+            // Fallback to first profile if no active ID saved
+            activeProfile = firstProfile
+            ProfileStore.saveActiveProfileID(firstProfile.id)
+        }
+    }
+
+    func syncCLICredentials() {
+        guard let profile = activeProfile else { return }
+
+        // Try to read CLI credential from system keychain
+        if let cliCredential = ClaudeCodeSyncService.readCLICredential() {
+            // Store the credential for the active profile
+            do {
+                try ProfileStore.saveCredential(cliCredential, for: profile.id)
+                updateAuthenticationStatus()
+            } catch {
+                // Silent failure - credential sync failed but app continues
+            }
+        }
+    }
+
+    private func updateAuthenticationStatus() {
+        guard let profile = activeProfile else {
+            isAuthenticated = false
+            return
+        }
+
+        do {
+            let credential = try ProfileStore.loadCredential(for: profile.id)
+            isAuthenticated = credential != nil
+        } catch {
+            isAuthenticated = false
+        }
+    }
+}

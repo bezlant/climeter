@@ -1,14 +1,24 @@
 import SwiftUI
 
 struct PopoverView: View {
+    @ObservedObject var profileManager: ProfileManager
+
     var body: some View {
         VStack(spacing: 16) {
             Text("Climeter")
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("42%")
-                .font(.system(size: 48, weight: .bold))
+            VStack(spacing: 8) {
+                if let profile = profileManager.activeProfile {
+                    Text(profile.name)
+                        .font(.headline)
+                }
+
+                Text(profileManager.isAuthenticated ? "Authenticated" : "Not Connected")
+                    .font(.subheadline)
+                    .foregroundColor(profileManager.isAuthenticated ? .green : .secondary)
+            }
 
             Divider()
 
@@ -23,5 +33,5 @@ struct PopoverView: View {
 }
 
 #Preview {
-    PopoverView()
+    PopoverView(profileManager: ProfileManager())
 }
