@@ -4,9 +4,8 @@ import SwiftUI
 struct ClimeterApp: App {
     var body: some Scene {
         MenuBarExtra("42%") {
-            Button("Quit") {
-                NSApplication.shared.terminate(nil)
-            }
+            PopoverView()
         }
+        .menuBarExtraStyle(.window)
     }
 }
