@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		1A000001000000000000001 /* ClimeterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A000002000000000000002 /* ClimeterApp.swift */; };
 		1A000013000000000000013 /* PopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A000014000000000000014 /* PopoverView.swift */; };
+		1A000015000000000000015 /* LaunchAtLoginService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A000016000000000000016 /* LaunchAtLoginService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -16,6 +17,7 @@
 		1A000003000000000000003 /* Climeter.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Climeter.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A000004000000000000004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		1A000014000000000000014 /* PopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverView.swift; sourceTree = "<group>"; };
+		1A000016000000000000016 /* LaunchAtLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -42,6 +44,7 @@
 			children = (
 				1A000002000000000000002 /* ClimeterApp.swift */,
 				1A000014000000000000014 /* PopoverView.swift */,
+				1A000016000000000000016 /* LaunchAtLoginService.swift */,
 				1A000004000000000000004 /* Info.plist */,
 			);
 			path = Climeter;
@@ -125,6 +128,7 @@
 			files = (
 				1A000001000000000000001 /* ClimeterApp.swift in Sources */,
 				1A000013000000000000013 /* PopoverView.swift in Sources */,
+				1A000015000000000000015 /* LaunchAtLoginService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
