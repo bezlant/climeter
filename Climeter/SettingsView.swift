@@ -16,10 +16,9 @@ struct SettingsView: View {
                     ForEach(profileManager.profiles) { profile in
                         HStack {
                             if editingProfileID == profile.id {
-                                TextField("Profile name", text: $editingName, onCommit: {
-                                    commitRename()
-                                })
-                                .textFieldStyle(.roundedBorder)
+                                TextField("Profile name", text: $editingName)
+                                    .textFieldStyle(.roundedBorder)
+                                    .onSubmit { commitRename() }
                             } else {
                                 Text(profile.name)
                                     .fontWeight(profileManager.activeProfile?.id == profile.id ? .semibold : .regular)
@@ -57,9 +56,11 @@ struct SettingsView: View {
                         .padding(.vertical, 4)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            if editingProfileID == nil {
-                                profileManager.switchProfile(to: profile.id)
+                            if editingProfileID != nil {
+                                editingProfileID = nil
+                                editingName = ""
                             }
+                            profileManager.switchProfile(to: profile.id)
                         }
                     }
                 }
