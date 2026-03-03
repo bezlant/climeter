@@ -4,14 +4,17 @@ import SwiftUI
 class ProfileManager: ObservableObject {
     @Published var activeProfile: Profile?
     @Published var isAuthenticated: Bool = false
+    @Published var usageData: UsageData?
 
     private var profiles: [Profile] = []
+    private var usageCoordinator: UsageRefreshCoordinator?
 
     init() {
         loadProfiles()
         setupActiveProfile()
         syncCLICredentials()
         updateAuthenticationStatus()
+        setupUsageCoordinator()
     }
 
     private func loadProfiles() {
@@ -65,5 +68,30 @@ class ProfileManager: ObservableObject {
         } catch {
             isAuthenticated = false
         }
+    }
+
+    private func setupUsageCoordinator() {
+        // Create coordinator with credential provider
+        usageCoordinator = UsageRefreshCoordinator { [weak self] in
+            guard let self = self,
+                  let profile = self.activeProfile else {
+                return nil
+            }
+
+            return try? ProfileStore.loadCredential(for: profile.id)
+        }
+
+        // Observe usage data changes from coordinator
+        usageCoordinator?.$usageData
+            .assign(to: &$usageData)
+
+        // Start polling if authenticated
+        if isAuthenticated {
+            usageCoordinator?.startPolling()
+        }
+    }
+
+    func refresh() {
+        usageCoordinator?.refresh()
     }
 }

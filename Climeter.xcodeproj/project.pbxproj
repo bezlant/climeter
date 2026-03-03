@@ -17,6 +17,7 @@
 		1A000025000000000000025 /* ProfileManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A000026000000000000026 /* ProfileManager.swift */; };
 		1A000027000000000000027 /* UsageData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A000028000000000000028 /* UsageData.swift */; };
 		1A000029000000000000029 /* ClaudeAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A000030000000000000030 /* ClaudeAPIService.swift */; };
+		1A000031000000000000031 /* UsageRefreshCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A000032000000000000032 /* UsageRefreshCoordinator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +33,7 @@
 		1A000026000000000000026 /* ProfileManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileManager.swift; sourceTree = "<group>"; };
 		1A000028000000000000028 /* UsageData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageData.swift; sourceTree = "<group>"; };
 		1A000030000000000000030 /* ClaudeAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIService.swift; sourceTree = "<group>"; };
+		1A000032000000000000032 /* UsageRefreshCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageRefreshCoordinator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +67,7 @@
 				1A000020000000000000020 /* Profile.swift */,
 				1A000022000000000000022 /* ProfileStore.swift */,
 				1A000026000000000000026 /* ProfileManager.swift */,
+				1A000032000000000000032 /* UsageRefreshCoordinator.swift */,
 				1A000028000000000000028 /* UsageData.swift */,
 				1A000004000000000000004 /* Info.plist */,
 			);
@@ -156,6 +159,7 @@
 				1A000019000000000000019 /* Profile.swift in Sources */,
 				1A000021000000000000021 /* ProfileStore.swift in Sources */,
 				1A000025000000000000025 /* ProfileManager.swift in Sources */,
+				1A000031000000000000031 /* UsageRefreshCoordinator.swift in Sources */,
 				1A000027000000000000027 /* UsageData.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
