@@ -20,6 +20,10 @@ struct ClimeterApp: App {
         guard let utilization = profileManager.usageData?.fiveHour.utilization else {
             return "—"
         }
-        return "\(Int(utilization.rounded()))%"
+        let percentage = "\(Int(utilization.rounded()))%"
+        if profileManager.profiles.count > 1, let name = profileManager.activeProfile?.name {
+            return "\(name): \(percentage)"
+        }
+        return percentage
     }
 }
