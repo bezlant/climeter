@@ -96,18 +96,24 @@ class ProfileManager: ObservableObject {
     }
 
     func createProfile(name: String) {
-        let newProfile = Profile(name: name, autoStartSession: false)
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        let newProfile = Profile(name: trimmed)
         profiles.append(newProfile)
         ProfileStore.saveProfiles(profiles)
     }
 
     func renameProfile(id: UUID, name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
         guard let index = profiles.firstIndex(where: { $0.id == id }) else { return }
-        profiles[index].name = name
-        ProfileStore.saveProfiles(profiles)
+
+        profiles[index].name = trimmed
         if activeProfile?.id == id {
             activeProfile = profiles[index]
         }
+        ProfileStore.saveProfiles(profiles)
     }
 
     func deleteProfile(id: UUID) {
@@ -115,7 +121,7 @@ class ProfileManager: ObservableObject {
         guard let index = profiles.firstIndex(where: { $0.id == id }) else { return }
 
         if activeProfile?.id == id {
-            let newActiveProfile = profiles.first { $0.id != id }!
+            guard let newActiveProfile = profiles.first(where: { $0.id != id }) else { return }
             switchProfile(to: newActiveProfile.id)
         }
 
@@ -132,6 +138,7 @@ class ProfileManager: ObservableObject {
         guard activeProfile?.id != id else { return }
 
         usageCoordinator?.stopPolling()
+        usageData = nil
 
         activeProfile = profile
         ProfileStore.saveActiveProfileID(id)
