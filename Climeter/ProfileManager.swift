@@ -6,7 +6,7 @@ class ProfileManager: ObservableObject {
     @Published var isAuthenticated: Bool = false
     @Published var usageData: UsageData?
 
-    private var profiles: [Profile] = []
+    @Published var profiles: [Profile] = []
     private var usageCoordinator: UsageRefreshCoordinator?
 
     init() {
@@ -93,5 +93,54 @@ class ProfileManager: ObservableObject {
 
     func refresh() {
         usageCoordinator?.refresh()
+    }
+
+    func createProfile(name: String) {
+        let newProfile = Profile(name: name, autoStartSession: false)
+        profiles.append(newProfile)
+        ProfileStore.saveProfiles(profiles)
+    }
+
+    func renameProfile(id: UUID, name: String) {
+        guard let index = profiles.firstIndex(where: { $0.id == id }) else { return }
+        profiles[index].name = name
+        ProfileStore.saveProfiles(profiles)
+        if activeProfile?.id == id {
+            activeProfile = profiles[index]
+        }
+    }
+
+    func deleteProfile(id: UUID) {
+        guard profiles.count > 1 else { return }
+        guard let index = profiles.firstIndex(where: { $0.id == id }) else { return }
+
+        if activeProfile?.id == id {
+            let newActiveProfile = profiles.first { $0.id != id }!
+            switchProfile(to: newActiveProfile.id)
+        }
+
+        profiles.remove(at: index)
+        ProfileStore.saveProfiles(profiles)
+
+        do {
+            try ProfileStore.deleteCredential(for: id)
+        } catch {}
+    }
+
+    func switchProfile(to id: UUID) {
+        guard let profile = profiles.first(where: { $0.id == id }) else { return }
+        guard activeProfile?.id != id else { return }
+
+        usageCoordinator?.stopPolling()
+
+        activeProfile = profile
+        ProfileStore.saveActiveProfileID(id)
+
+        syncCLICredentials()
+        updateAuthenticationStatus()
+
+        if isAuthenticated {
+            usageCoordinator?.startPolling()
+        }
     }
 }
