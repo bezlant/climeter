@@ -41,6 +41,30 @@ struct PopoverView: View {
             .padding(.top, 20)
             .padding(.bottom, 16)
 
+            // Profile switcher (only shown when multiple profiles exist)
+            if profileManager.profiles.count > 1 {
+                HStack {
+                    Text("Profile:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Picker("", selection: Binding(
+                        get: { profileManager.activeProfile?.id ?? UUID() },
+                        set: { profileManager.switchProfile(to: $0) }
+                    )) {
+                        ForEach(profileManager.profiles) { profile in
+                            Text(profile.name).tag(profile.id)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
+            }
+
             Divider()
 
             // Content area
