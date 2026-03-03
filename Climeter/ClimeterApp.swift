@@ -9,6 +9,11 @@ struct ClimeterApp: App {
             PopoverView(profileManager: profileManager)
         }
         .menuBarExtraStyle(.window)
+
+        Window("Settings", id: "settings") {
+            SettingsView(profileManager: profileManager)
+        }
+        .windowResizability(.contentSize)
     }
 
     private var menuBarTitle: String {

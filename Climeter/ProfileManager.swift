@@ -150,4 +150,25 @@ class ProfileManager: ObservableObject {
             usageCoordinator?.startPolling()
         }
     }
+
+    func removeCredential() {
+        guard let profile = activeProfile else { return }
+
+        do {
+            try ProfileStore.deleteCredential(for: profile.id)
+            updateAuthenticationStatus()
+            usageCoordinator?.stopPolling()
+            usageData = nil
+        } catch {}
+    }
+
+    func updateAutoStartSession(id: UUID, enabled: Bool) {
+        guard let index = profiles.firstIndex(where: { $0.id == id }) else { return }
+
+        profiles[index].autoStartSession = enabled
+        if activeProfile?.id == id {
+            activeProfile = profiles[index]
+        }
+        ProfileStore.saveProfiles(profiles)
+    }
 }

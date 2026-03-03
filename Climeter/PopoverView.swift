@@ -3,18 +3,28 @@ import SwiftUI
 struct PopoverView: View {
     @ObservedObject var profileManager: ProfileManager
     @State private var currentTime = Date.now
+    @Environment(\.openWindow) private var openWindow
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header with title and refresh button
+            // Header with title and buttons
             HStack {
                 Text("Climeter")
                     .font(.title2)
                     .fontWeight(.semibold)
 
                 Spacer()
+
+                Button(action: {
+                    openWindow(id: "settings")
+                }) {
+                    Image(systemName: "gear")
+                        .imageScale(.medium)
+                }
+                .buttonStyle(.borderless)
+                .help("Settings")
 
                 if profileManager.isAuthenticated {
                     Button(action: {
