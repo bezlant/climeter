@@ -4,7 +4,9 @@ macOS menu bar app that tracks your Claude Code API usage in real time.
 
 See your session and weekly limits at a glance. Know when you're running low before you hit a wall.
 
-![macOS](https://img.shields.io/badge/macOS-14%2B-black) ![Swift](https://img.shields.io/badge/Swift-5.9-orange) ![License](https://img.shields.io/github/license/bezlant/climeter)
+![macOS](https://img.shields.io/badge/macOS-14%2B-black) ![Swift](https://img.shields.io/badge/Swift-5.9-orange)
+
+![Climeter](screenshot.png)
 
 ## Why
 
