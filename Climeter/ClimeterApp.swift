@@ -3,10 +3,11 @@ import SwiftUI
 @main
 struct ClimeterApp: App {
     @StateObject private var profileManager = ProfileManager()
+    @StateObject private var updateChecker = UpdateChecker()
 
     var body: some Scene {
         MenuBarExtra(menuBarTitle) {
-            PopoverView(profileManager: profileManager)
+            PopoverView(profileManager: profileManager, updateChecker: updateChecker)
         }
         .menuBarExtraStyle(.window)
 
@@ -17,11 +18,13 @@ struct ClimeterApp: App {
     }
 
     private var menuBarTitle: String {
-        guard let utilization = profileManager.usageData?.fiveHour.utilization else {
+        guard let usageData = profileManager.cliActiveUsageData else {
             return "—"
         }
+        let utilization = usageData.fiveHour.utilization
         let percentage = "\(Int(utilization.rounded()))%"
-        if profileManager.profiles.count > 1, let name = profileManager.activeProfile?.name {
+
+        if profileManager.profiles.count > 1, let name = profileManager.cliActiveProfile?.name {
             return "\(name): \(percentage)"
         }
         return percentage

@@ -4,23 +4,25 @@ import SwiftUI
 class UsageRefreshCoordinator: ObservableObject {
     @Published var usageData: UsageData?
     @Published var isLoading: Bool = false
+    @Published var errorMessage: String?
 
-    private let credentialProvider: () -> String?
+    let profileID: UUID
+    private let credentialProvider: () -> Credential?
+    private let onCredentialRefreshed: ((Credential) -> Void)?
     private var timer: Timer?
-    private let refreshInterval: TimeInterval = 60.0 // 60 seconds for now
+    private let refreshInterval: TimeInterval = 60.0
 
-    init(credentialProvider: @escaping () -> String?) {
+    init(profileID: UUID,
+         credentialProvider: @escaping () -> Credential?,
+         onCredentialRefreshed: ((Credential) -> Void)? = nil) {
+        self.profileID = profileID
         self.credentialProvider = credentialProvider
+        self.onCredentialRefreshed = onCredentialRefreshed
     }
 
     func startPolling() {
-        // Don't start if already running
         guard timer == nil else { return }
-
-        // Do an immediate fetch
         refresh()
-
-        // Set up recurring timer
         timer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
             self?.refresh()
         }
@@ -32,27 +34,56 @@ class UsageRefreshCoordinator: ObservableObject {
     }
 
     func refresh() {
-        // Skip if already loading
         guard !isLoading else { return }
-
-        // Get credential
-        guard let credential = credentialProvider() else {
-            // No credential available, can't fetch
-            return
-        }
+        guard var credential = credentialProvider() else { return }
 
         isLoading = true
 
         Task { @MainActor in
+            defer { self.isLoading = false }
+
+            if credential.isExpired {
+                do {
+                    credential = try await ClaudeAPIService.refreshToken(credential)
+                    self.onCredentialRefreshed?(credential)
+                } catch {
+                    self.errorMessage = Self.describeError(error, context: "token refresh")
+                    return
+                }
+            }
+
             do {
                 let fetchedData = try await ClaudeAPIService.fetchUsage(credential: credential)
                 self.usageData = fetchedData
+                self.errorMessage = nil
             } catch {
-                // Silent failure - keep old data
-                // In production, could log error or expose it via @Published error property
+                // Keep old data if we have it, but show error if we don't
+                if self.usageData == nil {
+                    self.errorMessage = Self.describeError(error, context: "fetch")
+                }
             }
+        }
+    }
 
-            self.isLoading = false
+    private static func describeError(_ error: Error, context: String) -> String {
+        guard let apiError = error as? ClaudeAPIError else {
+            return "Network error"
+        }
+        switch apiError {
+        case .httpError(401), .tokenRefreshFailed(401):
+            return "Session expired — run /login"
+        case .tokenRefreshFailed(400):
+            return "Token invalid — run /login"
+        case .httpError(429):
+            return "Rate limited — retrying soon"
+        case .httpError(let code), .tokenRefreshFailed(let code):
+            return "HTTP \(code)"
+        case .invalidResponse:
+            return "Bad response"
+        case .decodingError:
+            return "Unexpected data format"
+        case .invalidCredential:
+            return "Invalid credential"
         }
     }
 

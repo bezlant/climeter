@@ -3,11 +3,9 @@ import Foundation
 struct Profile: Codable, Identifiable {
     let id: UUID
     var name: String
-    var autoStartSession: Bool
 
-    init(id: UUID = UUID(), name: String, autoStartSession: Bool = false) {
+    init(id: UUID = UUID(), name: String) {
         self.id = id
         self.name = name
-        self.autoStartSession = autoStartSession
     }
 }

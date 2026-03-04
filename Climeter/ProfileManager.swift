@@ -1,98 +1,200 @@
 import Foundation
 import SwiftUI
+import Combine
 
 class ProfileManager: ObservableObject {
-    @Published var activeProfile: Profile?
-    @Published var isAuthenticated: Bool = false
-    @Published var usageData: UsageData?
-
     @Published var profiles: [Profile] = []
-    private var usageCoordinator: UsageRefreshCoordinator?
+    @Published var allUsageData: [UUID: UsageData] = [:]
+    @Published var allErrors: [UUID: String] = [:]
+    @Published var cliActiveProfileID: UUID?
+
+    private var coordinators: [UUID: UsageRefreshCoordinator] = [:]
+    private var cancellables: [UUID: [AnyCancellable]] = [:]
+    private let autoSwitchThreshold: Double = 95.0
+    private var lastAutoSwitchDate: Date?
+
+    // Convenience for menu bar: usage data for CLI-active profile
+    var cliActiveUsageData: UsageData? {
+        guard let id = cliActiveProfileID else { return nil }
+        return allUsageData[id]
+    }
+
+    var cliActiveProfile: Profile? {
+        guard let id = cliActiveProfileID else { return nil }
+        return profiles.first { $0.id == id }
+    }
+
+    var hasAnyAuthenticated: Bool {
+        profiles.contains { ProfileStore.loadCredentialModel(for: $0.id) != nil }
+    }
 
     init() {
         loadProfiles()
-        setupActiveProfile()
-        syncCLICredentials()
-        updateAuthenticationStatus()
-        setupUsageCoordinator()
+        loadCLIActiveProfileID()
+        setupAllCoordinators()
+
+        // Read CLI keychain on background thread to avoid blocking the UI
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else { return }
+            let cliCredential = ClaudeCodeSyncService.readCLICredential()
+            DispatchQueue.main.async {
+                self.handleCLICredential(cliCredential)
+            }
+        }
     }
+
+    // MARK: - Initialization
 
     private func loadProfiles() {
         profiles = ProfileStore.loadProfiles()
-
-        // If no profiles exist, create a default profile
         if profiles.isEmpty {
-            let defaultProfile = Profile(name: "Default", autoStartSession: false)
+            let defaultProfile = Profile(name: "Default")
             profiles = [defaultProfile]
             ProfileStore.saveProfiles(profiles)
-            ProfileStore.saveActiveProfileID(defaultProfile.id)
         }
     }
 
-    private func setupActiveProfile() {
-        // Try to load saved active profile ID
-        if let activeID = ProfileStore.loadActiveProfileID(),
-           let profile = profiles.first(where: { $0.id == activeID }) {
-            activeProfile = profile
-        } else if let firstProfile = profiles.first {
-            // Fallback to first profile if no active ID saved
-            activeProfile = firstProfile
-            ProfileStore.saveActiveProfileID(firstProfile.id)
+    private func loadCLIActiveProfileID() {
+        if let savedID = ProfileStore.loadCLIActiveProfileID(),
+           profiles.contains(where: { $0.id == savedID }) {
+            cliActiveProfileID = savedID
         }
     }
 
-    func syncCLICredentials() {
-        guard let profile = activeProfile else { return }
+    private func handleCLICredential(_ cliCredential: Credential?) {
+        // Skip if we already have a profile with credentials
+        let hasStoredCredentials = profiles.contains { ProfileStore.loadCredentialModel(for: $0.id) != nil }
+        if hasStoredCredentials { return }
 
-        // Try to read CLI credential from system keychain
-        if let cliCredential = ClaudeCodeSyncService.readCLICredential() {
-            // Store the credential for the active profile
-            do {
-                try ProfileStore.saveCredential(cliCredential, for: profile.id)
-                updateAuthenticationStatus()
-            } catch {
-                // Silent failure - credential sync failed but app continues
+        guard let cliCredential else { return }
+
+        let target = profiles.first { ProfileStore.loadCredentialModel(for: $0.id) == nil }
+            ?? profiles[0]
+        try? ProfileStore.saveCredentialModel(cliCredential, for: target.id)
+        cliActiveProfileID = target.id
+        ProfileStore.saveCLIActiveProfileID(target.id)
+        setupCoordinator(for: target.id)
+    }
+
+    // MARK: - Usage Coordinators
+
+    private func setupAllCoordinators() {
+        for profile in profiles {
+            guard ProfileStore.loadCredentialModel(for: profile.id) != nil else { continue }
+            setupCoordinator(for: profile.id)
+        }
+    }
+
+    private func setupCoordinator(for profileID: UUID) {
+        // Don't create duplicates
+        guard coordinators[profileID] == nil else { return }
+
+        let coordinator = UsageRefreshCoordinator(
+            profileID: profileID,
+            credentialProvider: {
+                ProfileStore.loadCredentialModel(for: profileID)
+            },
+            onCredentialRefreshed: { [weak self] refreshed in
+                try? ProfileStore.saveCredentialModel(refreshed, for: profileID)
+                // If this is the CLI-active profile, also update system Keychain
+                if self?.cliActiveProfileID == profileID {
+                    ClaudeCodeSyncService.writeCLICredential(refreshed)
+                }
             }
-        }
-    }
+        )
 
-    private func updateAuthenticationStatus() {
-        guard let profile = activeProfile else {
-            isAuthenticated = false
-            return
-        }
-
-        do {
-            let credential = try ProfileStore.loadCredential(for: profile.id)
-            isAuthenticated = credential != nil
-        } catch {
-            isAuthenticated = false
-        }
-    }
-
-    private func setupUsageCoordinator() {
-        // Create coordinator with credential provider
-        usageCoordinator = UsageRefreshCoordinator { [weak self] in
-            guard let self = self,
-                  let profile = self.activeProfile else {
-                return nil
+        let usageSink = coordinator.$usageData
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] data in
+                self?.allUsageData[profileID] = data
+                self?.checkAutoSwitch()
             }
-
-            return try? ProfileStore.loadCredential(for: profile.id)
-        }
-
-        // Observe usage data changes from coordinator
-        usageCoordinator?.$usageData
-            .assign(to: &$usageData)
-
-        // Start polling if authenticated
-        if isAuthenticated {
-            usageCoordinator?.startPolling()
-        }
+        let errorSink = coordinator.$errorMessage
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] msg in
+                self?.allErrors[profileID] = msg
+            }
+        cancellables[profileID] = [usageSink, errorSink]
+        coordinators[profileID] = coordinator
+        coordinator.startPolling()
     }
+
+    private func teardownCoordinator(for profileID: UUID) {
+        coordinators[profileID]?.stopPolling()
+        coordinators.removeValue(forKey: profileID)
+        cancellables.removeValue(forKey: profileID)
+        allUsageData.removeValue(forKey: profileID)
+        allErrors.removeValue(forKey: profileID)
+    }
+
+    // MARK: - Auto-Switch
+
+    private func checkAutoSwitch() {
+        guard let activeID = cliActiveProfileID,
+              let activeData = allUsageData[activeID],
+              activeData.fiveHour.utilization >= autoSwitchThreshold else { return }
+
+        // Cooldown: don't flip-flop more than once per 60s
+        if let last = lastAutoSwitchDate, Date().timeIntervalSince(last) < 60 { return }
+
+        // Find first authenticated profile under threshold
+        let candidate = profiles.first { profile in
+            profile.id != activeID
+                && ProfileStore.loadCredentialModel(for: profile.id) != nil
+                && (allUsageData[profile.id]?.fiveHour.utilization ?? 100) < autoSwitchThreshold
+        }
+
+        guard let target = candidate else { return }
+        lastAutoSwitchDate = Date()
+        activateForCLI(profileID: target.id)
+    }
+
+    // MARK: - Public API
 
     func refresh() {
-        usageCoordinator?.refresh()
+        for coordinator in coordinators.values {
+            coordinator.refresh()
+        }
+        // Re-sync CLI credential in background (won't block UI)
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let cliCredential = ClaudeCodeSyncService.readCLICredential()
+            DispatchQueue.main.async {
+                self?.syncCLICredential(cliCredential)
+            }
+        }
+    }
+
+    private func syncCLICredential(_ cliCredential: Credential?) {
+        guard let cliCredential else { return }
+
+        for profile in profiles {
+            if let stored = ProfileStore.loadCredentialModel(for: profile.id),
+               stored.accessToken == cliCredential.accessToken {
+                if cliActiveProfileID != profile.id {
+                    cliActiveProfileID = profile.id
+                    ProfileStore.saveCLIActiveProfileID(profile.id)
+                }
+                return
+            }
+        }
+
+        // New account — create profile
+        let newProfile = Profile(name: "Account \(profiles.count + 1)")
+        profiles.append(newProfile)
+        ProfileStore.saveProfiles(profiles)
+
+        try? ProfileStore.saveCredentialModel(cliCredential, for: newProfile.id)
+        cliActiveProfileID = newProfile.id
+        ProfileStore.saveCLIActiveProfileID(newProfile.id)
+
+        setupCoordinator(for: newProfile.id)
+    }
+
+    func activateForCLI(profileID: UUID) {
+        guard let credential = ProfileStore.loadCredentialModel(for: profileID) else { return }
+        ClaudeCodeSyncService.writeCLICredential(credential)
+        cliActiveProfileID = profileID
+        ProfileStore.saveCLIActiveProfileID(profileID)
     }
 
     func createProfile(name: String) {
@@ -110,9 +212,6 @@ class ProfileManager: ObservableObject {
         guard let index = profiles.firstIndex(where: { $0.id == id }) else { return }
 
         profiles[index].name = trimmed
-        if activeProfile?.id == id {
-            activeProfile = profiles[index]
-        }
         ProfileStore.saveProfiles(profiles)
     }
 
@@ -120,55 +219,26 @@ class ProfileManager: ObservableObject {
         guard profiles.count > 1 else { return }
         guard let index = profiles.firstIndex(where: { $0.id == id }) else { return }
 
-        if activeProfile?.id == id {
-            guard let newActiveProfile = profiles.first(where: { $0.id != id }) else { return }
-            switchProfile(to: newActiveProfile.id)
+        teardownCoordinator(for: id)
+
+        if cliActiveProfileID == id {
+            cliActiveProfileID = profiles.first(where: { $0.id != id })?.id
+            ProfileStore.saveCLIActiveProfileID(cliActiveProfileID)
         }
 
         profiles.remove(at: index)
         ProfileStore.saveProfiles(profiles)
-
-        do {
-            try ProfileStore.deleteCredential(for: id)
-        } catch {}
+        try? ProfileStore.deleteCredential(for: id)
     }
 
-    func switchProfile(to id: UUID) {
-        guard let profile = profiles.first(where: { $0.id == id }) else { return }
-        guard activeProfile?.id != id else { return }
+    func removeCredential(for profileID: UUID) {
+        teardownCoordinator(for: profileID)
+        try? ProfileStore.deleteCredential(for: profileID)
+    }
 
-        usageCoordinator?.stopPolling()
-        usageData = nil
-
-        activeProfile = profile
-        ProfileStore.saveActiveProfileID(id)
-
-        syncCLICredentials()
-        updateAuthenticationStatus()
-
-        if isAuthenticated {
-            usageCoordinator?.startPolling()
+    deinit {
+        for coordinator in coordinators.values {
+            coordinator.stopPolling()
         }
-    }
-
-    func removeCredential() {
-        guard let profile = activeProfile else { return }
-
-        do {
-            try ProfileStore.deleteCredential(for: profile.id)
-            updateAuthenticationStatus()
-            usageCoordinator?.stopPolling()
-            usageData = nil
-        } catch {}
-    }
-
-    func updateAutoStartSession(id: UUID, enabled: Bool) {
-        guard let index = profiles.firstIndex(where: { $0.id == id }) else { return }
-
-        profiles[index].autoStartSession = enabled
-        if activeProfile?.id == id {
-            activeProfile = profiles[index]
-        }
-        ProfileStore.saveProfiles(profiles)
     }
 }
