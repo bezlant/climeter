@@ -2,13 +2,15 @@ import Foundation
 import Security
 
 enum ClaudeCodeSyncService {
-    static func readCLICredential() -> String? {
-        let serviceName = "Claude Code-credentials"
+    private static let serviceName = "Claude Code-credentials"
+    private static let account = NSUserName()
 
-        guard let account = NSUserName() as String? else {
-            return nil
-        }
+    static func readCLICredential() -> Credential? {
+        guard let raw = readCLICredentialRaw() else { return nil }
+        return Credential(jsonString: raw)
+    }
 
+    static func readCLICredentialRaw() -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
@@ -27,5 +29,28 @@ enum ClaudeCodeSyncService {
         }
 
         return credential
+    }
+
+    static func writeCLICredential(_ credential: Credential) {
+        let jsonString = credential.toJSONString()
+        guard let data = jsonString.data(using: .utf8) else { return }
+
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: serviceName,
+            kSecAttrAccount as String: account
+        ]
+
+        let attributes: [String: Any] = [
+            kSecValueData as String: data
+        ]
+
+        let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+
+        if updateStatus == errSecItemNotFound {
+            var addQuery = query
+            addQuery[kSecValueData as String] = data
+            SecItemAdd(addQuery as CFDictionary, nil)
+        }
     }
 }

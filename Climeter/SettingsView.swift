@@ -21,21 +21,33 @@ struct SettingsView: View {
                                     .onSubmit { commitRename() }
                             } else {
                                 Text(profile.name)
-                                    .fontWeight(profileManager.activeProfile?.id == profile.id ? .semibold : .regular)
-                                    .foregroundColor(profileManager.activeProfile?.id == profile.id ? .primary : .secondary)
+                                    .fontWeight(profileManager.cliActiveProfileID == profile.id ? .semibold : .regular)
+                                    .foregroundColor(profileManager.cliActiveProfileID == profile.id ? .primary : .secondary)
+                            }
+
+                            if profileManager.cliActiveProfileID == profile.id {
+                                Image(systemName: "terminal")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                                    .help("CLI-active account")
                             }
 
                             Spacer()
 
                             if editingProfileID == profile.id {
-                                Button("Done") {
-                                    commitRename()
-                                }
-                                .buttonStyle(.borderless)
+                                Button("Done") { commitRename() }
+                                    .buttonStyle(.borderless)
                             } else {
-                                Button(action: {
-                                    startEditing(profile: profile)
-                                }) {
+                                if ProfileStore.loadCredentialModel(for: profile.id) != nil,
+                                   profileManager.cliActiveProfileID != profile.id {
+                                    Button("Activate for CLI") {
+                                        profileManager.activateForCLI(profileID: profile.id)
+                                    }
+                                    .controlSize(.small)
+                                    .buttonStyle(.bordered)
+                                }
+
+                                Button(action: { startEditing(profile: profile) }) {
                                     Image(systemName: "pencil")
                                         .foregroundColor(.secondary)
                                 }
@@ -43,9 +55,7 @@ struct SettingsView: View {
                                 .help("Rename profile")
                             }
 
-                            Button(action: {
-                                profileManager.deleteProfile(id: profile.id)
-                            }) {
+                            Button(action: { profileManager.deleteProfile(id: profile.id) }) {
                                 Image(systemName: "trash")
                                     .foregroundColor(.secondary)
                             }
@@ -60,7 +70,6 @@ struct SettingsView: View {
                                 editingProfileID = nil
                                 editingName = ""
                             }
-                            profileManager.switchProfile(to: profile.id)
                         }
                     }
                 }
@@ -71,26 +80,22 @@ struct SettingsView: View {
                 }
             }
 
-            Section("CLI Account") {
+            Section("CLI Sync") {
                 HStack {
-                    Text("Status:")
+                    Text("Active CLI Account:")
                     Spacer()
-                    Text(profileManager.isAuthenticated ? "Connected" : "Not Connected")
-                        .foregroundColor(profileManager.isAuthenticated ? .green : .secondary)
+                    if let name = profileManager.cliActiveProfile?.name {
+                        Text(name)
+                            .foregroundColor(.green)
+                    } else {
+                        Text("None")
+                            .foregroundColor(.secondary)
+                    }
                 }
 
-                HStack {
-                    Button("Resync") {
-                        profileManager.syncCLICredentials()
-                    }
-                    .help("Re-read CLI credentials from system Keychain")
-
-                    Button("Remove") {
-                        profileManager.removeCredential()
-                    }
-                    .help("Delete credential for active profile")
-                    .disabled(!profileManager.isAuthenticated)
-                }
+                Text("Climeter detects /login automatically and syncs credentials.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
 
             Section("Settings") {
@@ -104,16 +109,6 @@ struct SettingsView: View {
                             showError = true
                         }
                     }
-
-                if let activeProfile = profileManager.activeProfile {
-                    Toggle("Auto-start Session", isOn: Binding(
-                        get: { activeProfile.autoStartSession },
-                        set: { newValue in
-                            profileManager.updateAutoStartSession(id: activeProfile.id, enabled: newValue)
-                        }
-                    ))
-                    .help("Automatically start usage tracking when app launches")
-                }
             }
         }
         .formStyle(.grouped)
