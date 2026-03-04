@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 enum KeychainService {
-    private static let serviceName = "com.abezlyudniy.climeter"
+    private static let serviceName = "com.bezlant.climeter"
 
     static func save(_ sessionKey: String, for profileID: UUID) throws {
         guard let data = sessionKey.data(using: .utf8) else {
