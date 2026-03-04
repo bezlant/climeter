@@ -22,6 +22,7 @@
 		1A000035000000000000035 /* Credential.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A000036000000000000036 /* Credential.swift */; };
 		1A000037000000000000037 /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A000038000000000000038 /* UpdateChecker.swift */; };
 		1A000040000000000000040 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A000039000000000000039 /* Assets.xcassets */; };
+		1A000041000000000000041 /* MenuBarIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A000042000000000000042 /* MenuBarIcon.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,6 +42,7 @@
 		1A000034000000000000034 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		1A000036000000000000036 /* Credential.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Credential.swift; sourceTree = "<group>"; };
 		1A000038000000000000038 /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
+		1A000042000000000000042 /* MenuBarIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIcon.swift; sourceTree = "<group>"; };
 		1A000039000000000000039 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -80,6 +82,7 @@
 				1A000028000000000000028 /* UsageData.swift */,
 				1A000036000000000000036 /* Credential.swift */,
 				1A000038000000000000038 /* UpdateChecker.swift */,
+				1A000042000000000000042 /* MenuBarIcon.swift */,
 				1A000039000000000000039 /* Assets.xcassets */,
 				1A000004000000000000004 /* Info.plist */,
 			);
@@ -177,6 +180,7 @@
 				1A000033000000000000033 /* SettingsView.swift in Sources */,
 				1A000035000000000000035 /* Credential.swift in Sources */,
 				1A000037000000000000037 /* UpdateChecker.swift in Sources */,
+				1A000041000000000000041 /* MenuBarIcon.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -10,7 +10,9 @@ class UsageRefreshCoordinator: ObservableObject {
     private let credentialProvider: () -> Credential?
     private let onCredentialRefreshed: ((Credential) -> Void)?
     private var timer: Timer?
-    private let refreshInterval: TimeInterval = 60.0
+    private let baseInterval: TimeInterval = 180.0
+    private var currentInterval: TimeInterval = 180.0
+    private let maxInterval: TimeInterval = 900.0
 
     init(profileID: UUID,
          credentialProvider: @escaping () -> Credential?,
@@ -22,9 +24,18 @@ class UsageRefreshCoordinator: ObservableObject {
 
     func startPolling() {
         guard timer == nil else { return }
-        refresh()
-        timer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
+        // Small delay on first poll to avoid hitting rate limits on rapid restarts
+        timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: false) { [weak self] _ in
             self?.refresh()
+            self?.scheduleNextPoll()
+        }
+    }
+
+    private func scheduleNextPoll() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: currentInterval, repeats: false) { [weak self] _ in
+            self?.refresh()
+            self?.scheduleNextPoll()
         }
     }
 
@@ -56,13 +67,33 @@ class UsageRefreshCoordinator: ObservableObject {
                 let fetchedData = try await ClaudeAPIService.fetchUsage(credential: credential)
                 self.usageData = fetchedData
                 self.errorMessage = nil
+                self.resetBackoff()
             } catch {
-                // Keep old data if we have it, but show error if we don't
-                if self.usageData == nil {
-                    self.errorMessage = Self.describeError(error, context: "fetch")
-                }
+                self.handleFetchError(error)
             }
         }
+    }
+
+    private func handleFetchError(_ error: Error) {
+        let is429 = (error as? ClaudeAPIError).map {
+            if case .httpError(429) = $0 { return true }
+            return false
+        } ?? false
+
+        if is429 {
+            currentInterval = min(currentInterval * 2, maxInterval)
+            scheduleNextPoll()
+        }
+
+        if usageData == nil {
+            errorMessage = Self.describeError(error, context: "fetch")
+        }
+    }
+
+    private func resetBackoff() {
+        guard currentInterval != baseInterval else { return }
+        currentInterval = baseInterval
+        scheduleNextPoll()
     }
 
     private static func describeError(_ error: Error, context: String) -> String {

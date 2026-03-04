@@ -11,94 +11,7 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Profiles") {
-                List {
-                    ForEach(profileManager.profiles) { profile in
-                        HStack {
-                            if editingProfileID == profile.id {
-                                TextField("Profile name", text: $editingName)
-                                    .textFieldStyle(.roundedBorder)
-                                    .onSubmit { commitRename() }
-                            } else {
-                                Text(profile.name)
-                                    .fontWeight(profileManager.cliActiveProfileID == profile.id ? .semibold : .regular)
-                                    .foregroundColor(profileManager.cliActiveProfileID == profile.id ? .primary : .secondary)
-                            }
-
-                            if profileManager.cliActiveProfileID == profile.id {
-                                Image(systemName: "terminal")
-                                    .font(.caption)
-                                    .foregroundColor(.green)
-                                    .help("CLI-active account")
-                            }
-
-                            Spacer()
-
-                            if editingProfileID == profile.id {
-                                Button("Done") { commitRename() }
-                                    .buttonStyle(.borderless)
-                            } else {
-                                if ProfileStore.loadCredentialModel(for: profile.id) != nil,
-                                   profileManager.cliActiveProfileID != profile.id {
-                                    Button("Activate for CLI") {
-                                        profileManager.activateForCLI(profileID: profile.id)
-                                    }
-                                    .controlSize(.small)
-                                    .buttonStyle(.bordered)
-                                }
-
-                                Button(action: { startEditing(profile: profile) }) {
-                                    Image(systemName: "pencil")
-                                        .foregroundColor(.secondary)
-                                }
-                                .buttonStyle(.borderless)
-                                .help("Rename profile")
-                            }
-
-                            Button(action: { profileManager.deleteProfile(id: profile.id) }) {
-                                Image(systemName: "trash")
-                                    .foregroundColor(.secondary)
-                            }
-                            .buttonStyle(.borderless)
-                            .help("Delete profile")
-                            .disabled(profileManager.profiles.count <= 1)
-                        }
-                        .padding(.vertical, 4)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            if editingProfileID != nil {
-                                editingProfileID = nil
-                                editingName = ""
-                            }
-                        }
-                    }
-                }
-                .frame(minHeight: 120)
-
-                Button("Add Profile") {
-                    profileManager.createProfile(name: "New Profile")
-                }
-            }
-
-            Section("CLI Sync") {
-                HStack {
-                    Text("Active CLI Account:")
-                    Spacer()
-                    if let name = profileManager.cliActiveProfile?.name {
-                        Text(name)
-                            .foregroundColor(.green)
-                    } else {
-                        Text("None")
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                Text("Climeter detects /login automatically and syncs credentials.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            Section("Settings") {
+            Section {
                 Toggle("Launch at Login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, newValue in
                         do {
@@ -110,9 +23,65 @@ struct SettingsView: View {
                         }
                     }
             }
+
+            Section("Profiles") {
+                ForEach(profileManager.profiles) { profile in
+                    HStack {
+                        if editingProfileID == profile.id {
+                            TextField("Profile name", text: $editingName)
+                                .textFieldStyle(.roundedBorder)
+                                .onSubmit { commitRename() }
+                        } else {
+                            Text(profile.name)
+                                .foregroundColor(profileManager.cliActiveProfileID == profile.id ? .primary : .secondary)
+                        }
+
+                        if profileManager.cliActiveProfileID == profile.id {
+                            Image(systemName: "terminal")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                        }
+
+                        Spacer()
+
+                        if editingProfileID == profile.id {
+                            Button("Done") { commitRename() }
+                                .buttonStyle(.borderless)
+                        } else {
+                            if profileManager.authenticatedProfileIDs.contains(profile.id),
+                               profileManager.cliActiveProfileID != profile.id {
+                                Button("Activate") {
+                                    profileManager.activateForCLI(profileID: profile.id)
+                                }
+                                .controlSize(.small)
+                                .buttonStyle(.bordered)
+                            }
+
+                            Button(action: { startEditing(profile: profile) }) {
+                                Image(systemName: "pencil")
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.borderless)
+                        }
+
+                        Button(action: { profileManager.deleteProfile(id: profile.id) }) {
+                            Image(systemName: "trash")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(profileManager.profiles.count <= 1)
+                    }
+                    .padding(.vertical, 2)
+                }
+
+                Button("Add Profile") {
+                    profileManager.createProfile(name: "New Profile")
+                }
+                .controlSize(.small)
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 400, height: 500)
+        .frame(width: 350, height: 300)
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {

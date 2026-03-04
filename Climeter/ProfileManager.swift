@@ -7,9 +7,11 @@ class ProfileManager: ObservableObject {
     @Published var allUsageData: [UUID: UsageData] = [:]
     @Published var allErrors: [UUID: String] = [:]
     @Published var cliActiveProfileID: UUID?
+    @Published private(set) var authenticatedProfileIDs: Set<UUID> = []
 
     private var coordinators: [UUID: UsageRefreshCoordinator] = [:]
     private var cancellables: [UUID: [AnyCancellable]] = [:]
+    private var cachedCredentials: [UUID: Credential] = [:]
     private let autoSwitchThreshold: Double = 95.0
     private var lastAutoSwitchDate: Date?
 
@@ -25,11 +27,16 @@ class ProfileManager: ObservableObject {
     }
 
     var hasAnyAuthenticated: Bool {
-        profiles.contains { ProfileStore.loadCredentialModel(for: $0.id) != nil }
+        !authenticatedProfileIDs.isEmpty
+    }
+
+    var authenticatedProfiles: [Profile] {
+        profiles.filter { authenticatedProfileIDs.contains($0.id) }
     }
 
     init() {
         loadProfiles()
+        refreshAuthenticatedIDs()
         loadCLIActiveProfileID()
         setupAllCoordinators()
 
@@ -41,6 +48,24 @@ class ProfileManager: ObservableObject {
                 self.handleCLICredential(cliCredential)
             }
         }
+    }
+
+    private func refreshAuthenticatedIDs() {
+        cachedCredentials.removeAll()
+        for profile in profiles {
+            if let credential = ProfileStore.loadCredentialModel(for: profile.id) {
+                cachedCredentials[profile.id] = credential
+            }
+        }
+        authenticatedProfileIDs = Set(cachedCredentials.keys)
+    }
+
+    func cachedCredential(for profileID: UUID) -> Credential? {
+        cachedCredentials[profileID]
+    }
+
+    func updateCachedCredential(_ credential: Credential, for profileID: UUID) {
+        cachedCredentials[profileID] = credential
     }
 
     // MARK: - Initialization
@@ -62,25 +87,23 @@ class ProfileManager: ObservableObject {
     }
 
     private func handleCLICredential(_ cliCredential: Credential?) {
-        // Skip if we already have a profile with credentials
-        let hasStoredCredentials = profiles.contains { ProfileStore.loadCredentialModel(for: $0.id) != nil }
-        if hasStoredCredentials { return }
+        if hasAnyAuthenticated { return }
 
         guard let cliCredential else { return }
 
-        let target = profiles.first { ProfileStore.loadCredentialModel(for: $0.id) == nil }
+        let target = profiles.first { !authenticatedProfileIDs.contains($0.id) }
             ?? profiles[0]
         try? ProfileStore.saveCredentialModel(cliCredential, for: target.id)
         cliActiveProfileID = target.id
         ProfileStore.saveCLIActiveProfileID(target.id)
+        refreshAuthenticatedIDs()
         setupCoordinator(for: target.id)
     }
 
     // MARK: - Usage Coordinators
 
     private func setupAllCoordinators() {
-        for profile in profiles {
-            guard ProfileStore.loadCredentialModel(for: profile.id) != nil else { continue }
+        for profile in profiles where authenticatedProfileIDs.contains(profile.id) {
             setupCoordinator(for: profile.id)
         }
     }
@@ -91,12 +114,12 @@ class ProfileManager: ObservableObject {
 
         let coordinator = UsageRefreshCoordinator(
             profileID: profileID,
-            credentialProvider: {
-                ProfileStore.loadCredentialModel(for: profileID)
+            credentialProvider: { [weak self] in
+                self?.cachedCredentials[profileID]
             },
             onCredentialRefreshed: { [weak self] refreshed in
+                self?.cachedCredentials[profileID] = refreshed
                 try? ProfileStore.saveCredentialModel(refreshed, for: profileID)
-                // If this is the CLI-active profile, also update system Keychain
                 if self?.cliActiveProfileID == profileID {
                     ClaudeCodeSyncService.writeCLICredential(refreshed)
                 }
@@ -140,7 +163,7 @@ class ProfileManager: ObservableObject {
         // Find first authenticated profile under threshold
         let candidate = profiles.first { profile in
             profile.id != activeID
-                && ProfileStore.loadCredentialModel(for: profile.id) != nil
+                && authenticatedProfileIDs.contains(profile.id)
                 && (allUsageData[profile.id]?.fiveHour.utilization ?? 100) < autoSwitchThreshold
         }
 
@@ -155,20 +178,13 @@ class ProfileManager: ObservableObject {
         for coordinator in coordinators.values {
             coordinator.refresh()
         }
-        // Re-sync CLI credential in background (won't block UI)
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let cliCredential = ClaudeCodeSyncService.readCLICredential()
-            DispatchQueue.main.async {
-                self?.syncCLICredential(cliCredential)
-            }
-        }
     }
 
     private func syncCLICredential(_ cliCredential: Credential?) {
         guard let cliCredential else { return }
 
         for profile in profiles {
-            if let stored = ProfileStore.loadCredentialModel(for: profile.id),
+            if let stored = cachedCredentials[profile.id],
                stored.accessToken == cliCredential.accessToken {
                 if cliActiveProfileID != profile.id {
                     cliActiveProfileID = profile.id
@@ -186,12 +202,13 @@ class ProfileManager: ObservableObject {
         try? ProfileStore.saveCredentialModel(cliCredential, for: newProfile.id)
         cliActiveProfileID = newProfile.id
         ProfileStore.saveCLIActiveProfileID(newProfile.id)
+        refreshAuthenticatedIDs()
 
         setupCoordinator(for: newProfile.id)
     }
 
     func activateForCLI(profileID: UUID) {
-        guard let credential = ProfileStore.loadCredentialModel(for: profileID) else { return }
+        guard let credential = cachedCredentials[profileID] else { return }
         ClaudeCodeSyncService.writeCLICredential(credential)
         cliActiveProfileID = profileID
         ProfileStore.saveCLIActiveProfileID(profileID)
@@ -229,11 +246,13 @@ class ProfileManager: ObservableObject {
         profiles.remove(at: index)
         ProfileStore.saveProfiles(profiles)
         try? ProfileStore.deleteCredential(for: id)
+        refreshAuthenticatedIDs()
     }
 
     func removeCredential(for profileID: UUID) {
         teardownCoordinator(for: profileID)
         try? ProfileStore.deleteCredential(for: profileID)
+        refreshAuthenticatedIDs()
     }
 
     deinit {

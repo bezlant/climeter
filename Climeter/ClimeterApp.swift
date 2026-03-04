@@ -6,8 +6,15 @@ struct ClimeterApp: App {
     @StateObject private var updateChecker = UpdateChecker()
 
     var body: some Scene {
-        MenuBarExtra(menuBarTitle) {
+        MenuBarExtra {
             PopoverView(profileManager: profileManager, updateChecker: updateChecker)
+        } label: {
+            if let usageData = profileManager.cliActiveUsageData {
+                let utilization = usageData.fiveHour.utilization
+                Image(nsImage: MenuBarIcon.progressBar(utilization: utilization))
+            } else {
+                Text("—")
+            }
         }
         .menuBarExtraStyle(.window)
 
@@ -15,18 +22,5 @@ struct ClimeterApp: App {
             SettingsView(profileManager: profileManager)
         }
         .windowResizability(.contentSize)
-    }
-
-    private var menuBarTitle: String {
-        guard let usageData = profileManager.cliActiveUsageData else {
-            return "—"
-        }
-        let utilization = usageData.fiveHour.utilization
-        let percentage = "\(Int(utilization.rounded()))%"
-
-        if profileManager.profiles.count > 1, let name = profileManager.cliActiveProfile?.name {
-            return "\(name): \(percentage)"
-        }
-        return percentage
     }
 }

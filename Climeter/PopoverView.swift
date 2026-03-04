@@ -10,116 +10,134 @@ struct PopoverView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Climeter")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Spacer()
-
-                Button(action: { openWindow(id: "settings") }) {
-                    Image(systemName: "gear")
-                        .imageScale(.medium)
-                }
-                .buttonStyle(.borderless)
-                .help("Settings")
-
-                if profileManager.hasAnyAuthenticated {
-                    Button(action: { profileManager.refresh() }) {
-                        Image(systemName: "arrow.clockwise")
-                            .imageScale(.medium)
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Refresh all accounts")
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 16)
-
-            Divider()
-
-            // Update banner
-            if updateChecker.updateAvailable, let version = updateChecker.latestVersion {
-                HStack(spacing: 4) {
-                    if let urlString = updateChecker.releaseURL,
-                       let url = URL(string: urlString) {
-                        Link("v\(version) available", destination: url)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    } else {
-                        Text("v\(version) available")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                    Button(action: { updateChecker.dismissUpdate() }) {
-                        Image(systemName: "xmark")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.borderless)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 6)
-
-                Divider()
-            }
-
             // Content
-            if authenticatedProfiles.isEmpty {
-                Text("Run /login in Claude Code\nto connect an account")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.vertical, 32)
+            if profileManager.authenticatedProfiles.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "person.crop.circle.badge.questionmark")
+                        .font(.system(size: 28))
+                        .foregroundColor(.secondary.opacity(0.5))
+                    Text("Run /login in Claude Code\nto connect an account")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.vertical, 32)
             } else {
                 ScrollView {
                     VStack(spacing: 0) {
-                        ForEach(Array(authenticatedProfiles.enumerated()), id: \.element.id) { index, profile in
-                            if index > 0 {
-                                Divider()
-                                    .padding(.horizontal, 16)
-                            }
+                        ForEach(Array(profileManager.authenticatedProfiles.enumerated()), id: \.element.id) { index, profile in
                             ProfileCard(
                                 profile: profile,
                                 usageData: profileManager.allUsageData[profile.id],
                                 errorMessage: profileManager.allErrors[profile.id],
                                 isCLIActive: profileManager.cliActiveProfileID == profile.id,
-                                showProfileName: authenticatedProfiles.count > 1,
+                                showProfileName: profileManager.authenticatedProfiles.count > 1,
                                 currentTime: currentTime,
                                 onActivate: {
                                     profileManager.activateForCLI(profileID: profile.id)
                                 }
                             )
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
+                            .padding(10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.4))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 0.5)
+                            )
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
                         }
                     }
+                    .padding(.top, 2)
                 }
                 .frame(maxHeight: 400)
             }
 
-            Divider()
+            // Update banner
+            if updateChecker.updateAvailable, let version = updateChecker.latestVersion {
+                Divider().opacity(0.5)
 
-            // Quit
-            Button("Quit") {
-                NSApplication.shared.terminate(nil)
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(.blue)
+                        .frame(width: 5, height: 5)
+                    if let urlString = updateChecker.releaseURL,
+                       let url = URL(string: urlString) {
+                        Link("v\(version) available", destination: url)
+                            .font(.system(size: 11))
+                            .foregroundColor(.blue.opacity(0.9))
+                    } else {
+                        Text("v\(version) available")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Button(action: { updateChecker.dismissUpdate() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(.secondary.opacity(0.6))
+                    }
+                    .buttonStyle(.borderless)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
             }
-            .buttonStyle(.borderedProminent)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+
+            // Footer
+            HStack(spacing: 6) {
+                HeaderButton(icon: "gear", help: "Settings") {
+                    openWindow(id: "settings")
+                }
+
+                Spacer()
+
+                if profileManager.hasAnyAuthenticated {
+                    HeaderButton(icon: "arrow.clockwise", help: "Refresh") {
+                        profileManager.refresh()
+                    }
+                }
+                HeaderButton(icon: "power", help: "Quit") {
+                    NSApplication.shared.terminate(nil)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
         }
         .frame(width: 280)
+        .background(.regularMaterial)
         .onReceive(timer) { time in
             currentTime = time
         }
     }
+}
 
-    private var authenticatedProfiles: [Profile] {
-        profileManager.profiles.filter { profile in
-            ProfileStore.loadCredentialModel(for: profile.id) != nil
+// MARK: - Header Button
+
+struct HeaderButton: View {
+    let icon: String
+    let help: String
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(isHovered ? .primary : .secondary)
+                .frame(width: 24, height: 24)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(isHovered ? Color.primary.opacity(0.08) : .clear)
+                )
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
         }
     }
 }
@@ -137,12 +155,10 @@ struct ProfileCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Profile header with name and action
             if showProfileName {
                 HStack {
                     Text(profile.name)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 12, weight: .semibold))
 
                     if isCLIActive {
                         CLIBadge()
@@ -158,26 +174,34 @@ struct ProfileCard: View {
                 }
             }
 
-            // Usage data
             if let data = usageData {
-                CompactUsageRow(
+                UsageRow(
                     label: "Session",
                     window: data.fiveHour,
                     currentTime: currentTime
                 )
-                CompactUsageRow(
+                UsageRow(
                     label: "Week",
                     window: data.sevenDay,
                     currentTime: currentTime
                 )
             } else if let error = errorMessage {
-                Text(error)
-                    .font(.caption)
-                    .foregroundColor(.red)
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.orange)
+                    Text(error)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
             } else {
-                Text("Loading...")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Loading...")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
             }
         }
     }
@@ -190,38 +214,36 @@ struct CLIBadge: View {
         HStack(spacing: 3) {
             Circle()
                 .fill(.green)
-                .frame(width: 6, height: 6)
+                .frame(width: 5, height: 5)
             Text("CLI")
-                .font(.caption2)
-                .fontWeight(.medium)
+                .font(.system(size: 9, weight: .bold))
                 .foregroundColor(.green)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
-        .background(.green.opacity(0.15))
-        .cornerRadius(4)
+        .background(Capsule().fill(.green.opacity(0.12)))
     }
 }
 
-// MARK: - Compact Usage Row
+// MARK: - Usage Row
 
-struct CompactUsageRow: View {
+struct UsageRow: View {
     let label: String
     let window: UsageWindow
     let currentTime: Date
 
-    private var percentage: String {
-        String(format: "%.0f%%", window.utilization)
+    private var utilization: Double { window.utilization }
+
+    private var statusColor: Color {
+        if utilization >= 80 { return .red }
+        if utilization >= 60 { return .orange }
+        return .green
     }
 
-    private var progressValue: Double {
-        window.utilization / 100.0
-    }
-
-    private var progressColor: Color {
-        if window.utilization >= 80 { return .red }
-        else if window.utilization >= 60 { return .yellow }
-        else { return .green }
+    private var statusIcon: String {
+        if utilization >= 80 { return "exclamationmark.circle.fill" }
+        if utilization >= 60 { return "minus.circle.fill" }
+        return "checkmark.circle.fill"
     }
 
     private var countdown: String {
@@ -243,26 +265,47 @@ struct CompactUsageRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 5) {
             HStack {
                 Text(label)
-                    .font(.caption)
+                    .font(.system(size: 11))
                     .foregroundColor(.secondary)
                 Spacer()
-                Text(percentage)
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(progressColor)
+                HStack(spacing: 4) {
+                    Image(systemName: statusIcon)
+                        .font(.system(size: 9))
+                        .foregroundColor(statusColor)
+                    Text("\(Int(utilization))%")
+                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        .foregroundColor(statusColor)
+                }
                 Text("·")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary.opacity(0.5))
                 Text(countdown)
-                    .font(.caption)
+                    .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
-            ProgressView(value: progressValue)
-                .tint(progressColor)
-                .frame(height: 6)
+
+            // Custom gradient progress bar
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.secondary.opacity(0.12))
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(
+                            LinearGradient(
+                                colors: [statusColor, statusColor.opacity(0.7)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: geometry.size.width * min(utilization / 100.0, 1.0))
+                        .animation(.easeInOut(duration: 0.8), value: utilization)
+                }
+            }
+            .frame(height: 8)
         }
     }
 }
