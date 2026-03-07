@@ -41,18 +41,26 @@ enum ClaudeCodeSyncService {
             kSecAttrAccount as String: account
         ]
 
-        // Delete and re-create with an ACL that includes /usr/bin/security,
-        // so Claude Code CLI won't trigger a keychain prompt.
-        SecItemDelete(query as CFDictionary)
+        // Try updating in-place first to preserve existing ACL (including
+        // any "Always Allow" grants the user has given to Claude Code CLI).
+        let attributes: [String: Any] = [
+            kSecValueData as String: data
+        ]
 
-        var addQuery = query
-        addQuery[kSecValueData as String] = data
+        let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
 
-        if let access = makeSharedAccess() {
-            addQuery[kSecAttrAccess as String] = access
+        if updateStatus == errSecItemNotFound {
+            // Item doesn't exist yet — create with an ACL that trusts
+            // both Climeter and /usr/bin/security.
+            var addQuery = query
+            addQuery[kSecValueData as String] = data
+
+            if let access = makeSharedAccess() {
+                addQuery[kSecAttrAccess as String] = access
+            }
+
+            SecItemAdd(addQuery as CFDictionary, nil)
         }
-
-        SecItemAdd(addQuery as CFDictionary, nil)
     }
 
     private static func makeSharedAccess() -> SecAccess? {
