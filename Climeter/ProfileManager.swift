@@ -123,6 +123,16 @@ class ProfileManager: ObservableObject {
                 if self?.cliActiveProfileID == profileID {
                     ClaudeCodeSyncService.writeCLICredential(refreshed)
                 }
+            },
+            onCredentialInvalid: { [weak self] in
+                guard self?.cliActiveProfileID == profileID,
+                      let fresh = ClaudeCodeSyncService.readCLICredential(),
+                      fresh.refreshToken != self?.cachedCredentials[profileID]?.refreshToken else {
+                    return nil
+                }
+                self?.cachedCredentials[profileID] = fresh
+                try? ProfileStore.saveCredentialModel(fresh, for: profileID)
+                return fresh
             }
         )
 

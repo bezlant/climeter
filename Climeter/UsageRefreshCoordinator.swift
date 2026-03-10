@@ -14,12 +14,16 @@ class UsageRefreshCoordinator: ObservableObject {
     private var currentInterval: TimeInterval = 180.0
     private let maxInterval: TimeInterval = 900.0
 
+    private let onCredentialInvalid: (() -> Credential?)?
+
     init(profileID: UUID,
          credentialProvider: @escaping () -> Credential?,
-         onCredentialRefreshed: ((Credential) -> Void)? = nil) {
+         onCredentialRefreshed: ((Credential) -> Void)? = nil,
+         onCredentialInvalid: (() -> Credential?)? = nil) {
         self.profileID = profileID
         self.credentialProvider = credentialProvider
         self.onCredentialRefreshed = onCredentialRefreshed
+        self.onCredentialInvalid = onCredentialInvalid
     }
 
     func startPolling() {
@@ -58,8 +62,24 @@ class UsageRefreshCoordinator: ObservableObject {
                     credential = try await ClaudeAPIService.refreshToken(credential)
                     self.onCredentialRefreshed?(credential)
                 } catch {
-                    self.errorMessage = Self.describeError(error, context: "token refresh")
-                    return
+                    // Refresh token may be stale — try CLI keychain for a fresh credential
+                    if let fresh = self.onCredentialInvalid?() {
+                        credential = fresh
+                        if credential.isExpired {
+                            do {
+                                credential = try await ClaudeAPIService.refreshToken(credential)
+                                self.onCredentialRefreshed?(credential)
+                            } catch {
+                                self.errorMessage = Self.describeError(error, context: "token refresh")
+                                return
+                            }
+                        } else {
+                            self.onCredentialRefreshed?(credential)
+                        }
+                    } else {
+                        self.errorMessage = Self.describeError(error, context: "token refresh")
+                        return
+                    }
                 }
             }
 
