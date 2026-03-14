@@ -194,6 +194,7 @@ struct ProfileCard: View {
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
+                .frame(maxWidth: .infinity)
             } else {
                 HStack(spacing: 6) {
                     ProgressView()

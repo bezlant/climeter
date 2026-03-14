@@ -124,15 +124,20 @@ class ProfileManager: ObservableObject {
                     ClaudeCodeSyncService.writeCLICredential(refreshed)
                 }
             },
-            onCredentialInvalid: { [weak self] in
+            syncCLICredential: { [weak self] in
                 guard self?.cliActiveProfileID == profileID,
                       let fresh = ClaudeCodeSyncService.readCLICredential(),
                       fresh.refreshToken != self?.cachedCredentials[profileID]?.refreshToken else {
-                    return nil
+                    return
                 }
                 self?.cachedCredentials[profileID] = fresh
                 try? ProfileStore.saveCredentialModel(fresh, for: profileID)
-                return fresh
+            },
+            onAutoStart: { [weak self] credential in
+                guard self?.cliActiveProfileID == profileID else { return }
+                Task {
+                    await ClaudeAPIService.startSession(credential: credential)
+                }
             }
         )
 

@@ -14,21 +14,27 @@ class UsageRefreshCoordinator: ObservableObject {
     private var currentInterval: TimeInterval = 180.0
     private let maxInterval: TimeInterval = 900.0
 
-    private let onCredentialInvalid: (() -> Credential?)?
+    /// Reads the CLI keychain and updates the credential cache
+    /// if a newer credential is available.
+    private let syncCLICredential: (() -> Void)?
+
+    private var lastAutoStartResetTime: Date?
+    private let onAutoStart: ((Credential) -> Void)?
 
     init(profileID: UUID,
          credentialProvider: @escaping () -> Credential?,
          onCredentialRefreshed: ((Credential) -> Void)? = nil,
-         onCredentialInvalid: (() -> Credential?)? = nil) {
+         syncCLICredential: (() -> Void)? = nil,
+         onAutoStart: ((Credential) -> Void)? = nil) {
         self.profileID = profileID
         self.credentialProvider = credentialProvider
         self.onCredentialRefreshed = onCredentialRefreshed
-        self.onCredentialInvalid = onCredentialInvalid
+        self.syncCLICredential = syncCLICredential
+        self.onAutoStart = onAutoStart
     }
 
     func startPolling() {
         guard timer == nil else { return }
-        // Small delay on first poll to avoid hitting rate limits on rapid restarts
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: false) { [weak self] _ in
             self?.refresh()
             self?.scheduleNextPoll()
@@ -50,6 +56,12 @@ class UsageRefreshCoordinator: ObservableObject {
 
     func refresh() {
         guard !isLoading else { return }
+
+        // Proactively sync from CLI keychain before each cycle.
+        // Picks up credentials from /login or CLI-side token refreshes
+        // without waiting for a failure first.
+        syncCLICredential?()
+
         guard var credential = credentialProvider() else { return }
 
         isLoading = true
@@ -59,27 +71,10 @@ class UsageRefreshCoordinator: ObservableObject {
 
             if credential.isExpired {
                 do {
-                    credential = try await ClaudeAPIService.refreshToken(credential)
-                    self.onCredentialRefreshed?(credential)
+                    credential = try await self.recoverCredential(credential)
                 } catch {
-                    // Refresh token may be stale — try CLI keychain for a fresh credential
-                    if let fresh = self.onCredentialInvalid?() {
-                        credential = fresh
-                        if credential.isExpired {
-                            do {
-                                credential = try await ClaudeAPIService.refreshToken(credential)
-                                self.onCredentialRefreshed?(credential)
-                            } catch {
-                                self.errorMessage = Self.describeError(error, context: "token refresh")
-                                return
-                            }
-                        } else {
-                            self.onCredentialRefreshed?(credential)
-                        }
-                    } else {
-                        self.errorMessage = Self.describeError(error, context: "token refresh")
-                        return
-                    }
+                    self.errorMessage = Self.describeError(error, context: "token refresh")
+                    return
                 }
             }
 
@@ -87,11 +82,64 @@ class UsageRefreshCoordinator: ObservableObject {
                 let fetchedData = try await ClaudeAPIService.fetchUsage(credential: credential)
                 self.usageData = fetchedData
                 self.errorMessage = nil
+                self.checkAutoStart(credential: credential, usage: fetchedData)
                 self.resetBackoff()
             } catch {
-                self.handleFetchError(error)
+                // Access token rejected server-side (e.g. revoked by a new
+                // /login between the proactive sync and this API call) —
+                // recover and retry once.
+                guard case .httpError(401) = error as? ClaudeAPIError else {
+                    self.handleFetchError(error)
+                    return
+                }
+                do {
+                    credential = try await self.recoverCredential(credential)
+                    let fetchedData = try await ClaudeAPIService.fetchUsage(credential: credential)
+                    self.usageData = fetchedData
+                    self.errorMessage = nil
+                    self.checkAutoStart(credential: credential, usage: fetchedData)
+                    self.resetBackoff()
+                } catch {
+                    self.handleFetchError(error)
+                }
             }
         }
+    }
+
+    /// Attempt to refresh the credential. On failure, sync from CLI keychain
+    /// and retry with the fresh credential if one was found.
+    private func recoverCredential(_ credential: Credential) async throws -> Credential {
+        do {
+            let refreshed = try await ClaudeAPIService.refreshToken(credential)
+            onCredentialRefreshed?(refreshed)
+            return refreshed
+        } catch {
+            // Refresh token may be stale — sync from CLI keychain
+            syncCLICredential?()
+            guard let fresh = credentialProvider(),
+                  fresh.refreshToken != credential.refreshToken else {
+                throw error
+            }
+            if fresh.isExpired {
+                let refreshed = try await ClaudeAPIService.refreshToken(fresh)
+                onCredentialRefreshed?(refreshed)
+                return refreshed
+            }
+            onCredentialRefreshed?(fresh)
+            return fresh
+        }
+    }
+
+    private func checkAutoStart(credential: Credential, usage: UsageData) {
+        guard onAutoStart != nil,
+              usage.fiveHour.utilization == 0 else {
+            lastAutoStartResetTime = nil
+            return
+        }
+        let resetTime = usage.fiveHour.resetsAt
+        guard lastAutoStartResetTime != resetTime else { return }
+        lastAutoStartResetTime = resetTime
+        onAutoStart?(credential)
     }
 
     private func handleFetchError(_ error: Error) {
