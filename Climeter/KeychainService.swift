@@ -21,12 +21,14 @@ enum KeychainService {
         ]
 
         let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        Log.keychain.info("save(\(profileID)) SecItemUpdate: \(Log.keychainStatus(updateStatus))")
 
         if updateStatus == errSecItemNotFound {
             var addQuery = query
             addQuery[kSecValueData as String] = data
 
             let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+            Log.keychain.info("save(\(profileID)) SecItemAdd: \(Log.keychainStatus(addStatus))")
             guard addStatus == errSecSuccess else {
                 throw KeychainError.unableToSave(addStatus)
             }
@@ -47,6 +49,7 @@ enum KeychainService {
 
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
+        Log.keychain.info("read(\(profileID)) SecItemCopyMatching: \(Log.keychainStatus(status))")
 
         if status == errSecItemNotFound {
             return nil
@@ -73,6 +76,7 @@ enum KeychainService {
         ]
 
         let status = SecItemDelete(query as CFDictionary)
+        Log.keychain.info("delete(\(profileID)) SecItemDelete: \(Log.keychainStatus(status))")
 
         if status != errSecSuccess && status != errSecItemNotFound {
             throw KeychainError.unableToDelete(status)

@@ -7,7 +7,11 @@ enum ClaudeCodeSyncService {
 
     static func readCLICredential() -> Credential? {
         guard let raw = readCLICredentialRaw() else { return nil }
-        return Credential(jsonString: raw)
+        let credential = Credential(jsonString: raw)
+        if credential == nil {
+            Log.cliSync.warning("CLI keychain data read OK but failed to parse as Credential")
+        }
+        return credential
     }
 
     static func readCLICredentialRaw() -> String? {
@@ -22,12 +26,18 @@ enum ClaudeCodeSyncService {
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
 
+        Log.cliSync.info("readCLICredential SecItemCopyMatching: \(Log.keychainStatus(status))")
+
         guard status == errSecSuccess,
               let data = result as? Data,
               let credential = String(data: data, encoding: .utf8) else {
+            if status != errSecItemNotFound {
+                Log.cliSync.error("readCLICredential failed: \(Log.keychainStatus(status))")
+            }
             return nil
         }
 
+        Log.cliSync.info("readCLICredential succeeded, data length: \(data.count)")
         return credential
     }
 
@@ -48,6 +58,7 @@ enum ClaudeCodeSyncService {
         ]
 
         let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        Log.cliSync.info("writeCLICredential SecItemUpdate: \(Log.keychainStatus(updateStatus))")
 
         if updateStatus == errSecItemNotFound {
             // Item doesn't exist yet — create with an ACL that trusts
@@ -59,7 +70,10 @@ enum ClaudeCodeSyncService {
                 addQuery[kSecAttrAccess as String] = access
             }
 
-            SecItemAdd(addQuery as CFDictionary, nil)
+            let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+            Log.cliSync.info("writeCLICredential SecItemAdd: \(Log.keychainStatus(addStatus))")
+        } else if updateStatus != errSecSuccess {
+            Log.cliSync.error("writeCLICredential update failed: \(Log.keychainStatus(updateStatus))")
         }
     }
 

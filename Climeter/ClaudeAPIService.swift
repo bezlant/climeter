@@ -14,12 +14,14 @@ enum ClaudeAPIService {
         request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
+        Log.api.info("fetchUsage: GET /api/oauth/usage")
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw ClaudeAPIError.invalidResponse
         }
 
+        Log.api.info("fetchUsage: HTTP \(httpResponse.statusCode)")
         guard httpResponse.statusCode == 200 else {
             throw ClaudeAPIError.httpError(httpResponse.statusCode)
         }
@@ -31,6 +33,7 @@ enum ClaudeAPIService {
             let usageData = try decoder.decode(UsageData.self, from: data)
             return usageData
         } catch {
+            Log.api.error("fetchUsage: decode error: \(error)")
             throw ClaudeAPIError.decodingError(error)
         }
     }
@@ -49,12 +52,14 @@ enum ClaudeAPIService {
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
+        Log.api.info("refreshToken: POST /v1/oauth/token")
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw ClaudeAPIError.invalidResponse
         }
 
+        Log.api.info("refreshToken: HTTP \(httpResponse.statusCode)")
         guard httpResponse.statusCode == 200 else {
             throw ClaudeAPIError.tokenRefreshFailed(httpResponse.statusCode)
         }
@@ -66,6 +71,7 @@ enum ClaudeAPIService {
         }
 
         let expiresIn = json["expires_in"] as? TimeInterval ?? 3600
+        Log.api.info("refreshToken: success, new token expires in \(Int(expiresIn))s")
         var refreshed = credential
         refreshed.accessToken = accessToken
         refreshed.refreshToken = refreshToken
@@ -89,6 +95,7 @@ enum ClaudeAPIService {
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
+        Log.api.info("startSession: POST /v1/messages (auto-start)")
         _ = try? await URLSession.shared.data(for: request)
     }
 }

@@ -38,12 +38,15 @@ class ProfileManager: ObservableObject {
         loadProfiles()
         refreshAuthenticatedIDs()
         loadCLIActiveProfileID()
+        Log.profiles.info("init: \(self.profiles.count) profiles, \(self.authenticatedProfileIDs.count) authenticated, cliActive=\(self.cliActiveProfileID?.uuidString ?? "none")")
         setupAllCoordinators()
 
         // Read CLI keychain on background thread to avoid blocking the UI
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
+            Log.profiles.info("init: reading CLI keychain (background thread)...")
             let cliCredential = ClaudeCodeSyncService.readCLICredential()
+            Log.profiles.info("init: CLI keychain read done, credential=\(cliCredential != nil)")
             DispatchQueue.main.async {
                 self.handleCLICredential(cliCredential)
             }
@@ -111,6 +114,7 @@ class ProfileManager: ObservableObject {
     private func setupCoordinator(for profileID: UUID) {
         // Don't create duplicates
         guard coordinators[profileID] == nil else { return }
+        Log.profiles.info("setupCoordinator for \(profileID)")
 
         let coordinator = UsageRefreshCoordinator(
             profileID: profileID,
@@ -118,18 +122,30 @@ class ProfileManager: ObservableObject {
                 self?.cachedCredentials[profileID]
             },
             onCredentialRefreshed: { [weak self] refreshed in
+                Log.profiles.info("[\(profileID)] credential refreshed, saving to app keychain...")
                 self?.cachedCredentials[profileID] = refreshed
                 try? ProfileStore.saveCredentialModel(refreshed, for: profileID)
                 if self?.cliActiveProfileID == profileID {
+                    Log.profiles.info("[\(profileID)] is CLI-active, writing back to CLI keychain...")
                     ClaudeCodeSyncService.writeCLICredential(refreshed)
                 }
             },
             syncCLICredential: { [weak self] in
-                guard self?.cliActiveProfileID == profileID,
-                      let fresh = ClaudeCodeSyncService.readCLICredential(),
-                      fresh.refreshToken != self?.cachedCredentials[profileID]?.refreshToken else {
+                let isCLIActive = self?.cliActiveProfileID == profileID
+                guard isCLIActive else {
+                    Log.coordinator.debug("[\(profileID)] skipping CLI sync — not CLI-active profile")
                     return
                 }
+                Log.coordinator.info("[\(profileID)] reading CLI keychain for sync...")
+                guard let fresh = ClaudeCodeSyncService.readCLICredential() else {
+                    Log.coordinator.info("[\(profileID)] CLI keychain returned nil")
+                    return
+                }
+                guard fresh.refreshToken != self?.cachedCredentials[profileID]?.refreshToken else {
+                    Log.coordinator.debug("[\(profileID)] CLI credential unchanged (same refresh token)")
+                    return
+                }
+                Log.coordinator.info("[\(profileID)] CLI credential has newer refresh token, updating cache")
                 self?.cachedCredentials[profileID] = fresh
                 try? ProfileStore.saveCredentialModel(fresh, for: profileID)
             },
@@ -183,6 +199,7 @@ class ProfileManager: ObservableObject {
         }
 
         guard let target = candidate else { return }
+        Log.profiles.info("autoSwitch: \(activeID) at \(activeData.fiveHour.utilization)% -> switching to \(target.id)")
         lastAutoSwitchDate = Date()
         activateForCLI(profileID: target.id)
     }
@@ -224,6 +241,7 @@ class ProfileManager: ObservableObject {
 
     func activateForCLI(profileID: UUID) {
         guard let credential = cachedCredentials[profileID] else { return }
+        Log.profiles.info("activateForCLI: switching to \(profileID), writing to CLI keychain...")
         ClaudeCodeSyncService.writeCLICredential(credential)
         cliActiveProfileID = profileID
         ProfileStore.saveCLIActiveProfileID(profileID)
