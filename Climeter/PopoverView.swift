@@ -53,6 +53,7 @@ struct PopoverView: View {
                     .padding(.top, 2)
                 }
                 .frame(maxHeight: 400)
+                .fixedSize(horizontal: false, vertical: true)
             }
 
             // Update banner

@@ -112,6 +112,8 @@ enum Log {
         case errSecDuplicateItem:          return "duplicateItem(-25299)"
         case errSecUserCanceled:           return "userCanceled(-128)"
         case errSecMissingEntitlement:     return "missingEntitlement(-34018)"
+        case -25320:                       return "inDarkWake(-25320)"
+        case -60008:                       return "authorizationInternal(-60008)"
         default:                           return "OSStatus(\(status))"
         }
     }
