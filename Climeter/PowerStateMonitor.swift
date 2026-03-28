@@ -1,7 +1,6 @@
 import AppKit
 import Foundation
 
-@MainActor
 final class PowerStateMonitor: ObservableObject {
     @Published private(set) var isSystemAwake = true
     @Published private(set) var isScreenLocked = false

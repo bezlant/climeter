@@ -14,6 +14,8 @@ class ProfileManager: ObservableObject {
     private var cachedCredentials: [UUID: Credential] = [:]
     private let autoSwitchThreshold: Double = 95.0
     private var lastAutoSwitchDate: Date?
+    private let powerMonitor = PowerStateMonitor()
+    private var hasResumedSinceLastSleep = false
 
     // Convenience for menu bar: usage data for CLI-active profile
     var cliActiveUsageData: UsageData? {
@@ -51,6 +53,8 @@ class ProfileManager: ObservableObject {
                 self.handleCLICredential(cliCredential)
             }
         }
+
+        setupPowerMonitor()
     }
 
     private func refreshAuthenticatedIDs() {
@@ -101,6 +105,59 @@ class ProfileManager: ObservableObject {
         ProfileStore.saveCLIActiveProfileID(target.id)
         refreshAuthenticatedIDs()
         setupCoordinator(for: target.id)
+    }
+
+    private func setupPowerMonitor() {
+        powerMonitor.onSleep = { [weak self] in
+            guard let self else { return }
+            self.hasResumedSinceLastSleep = false
+            for coordinator in self.coordinators.values {
+                coordinator.stopPolling()
+            }
+        }
+
+        powerMonitor.onWake = { [weak self] in
+            // Don't resume yet — keychain may still be locked.
+            // Wait for onScreenUnlocked. But if screen lock is
+            // not required (e.g. no password after sleep), wake
+            // alone is enough — schedule a delayed retry.
+            guard let self else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                guard let self, !self.powerMonitor.isScreenLocked else { return }
+                self.resumeAfterWake()
+            }
+        }
+
+        powerMonitor.onScreenUnlocked = { [weak self] in
+            self?.resumeAfterWake()
+        }
+
+        powerMonitor.startMonitoring()
+    }
+
+    private func resumeAfterWake() {
+        guard !hasResumedSinceLastSleep else { return }
+        hasResumedSinceLastSleep = true
+        Log.profiles.info("resumeAfterWake: re-reading keychain and restarting coordinators")
+        refreshAuthenticatedIDs()
+        Log.profiles.info("resumeAfterWake: \(self.authenticatedProfileIDs.count) authenticated")
+
+        // Restart coordinators for any profiles that now have credentials
+        for profile in profiles where authenticatedProfileIDs.contains(profile.id) {
+            if coordinators[profile.id] == nil {
+                setupCoordinator(for: profile.id)
+            } else {
+                coordinators[profile.id]?.startPolling()
+            }
+        }
+
+        // Also re-read CLI keychain for any credential changes during sleep
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let cliCredential = ClaudeCodeSyncService.readCLICredential()
+            DispatchQueue.main.async {
+                self?.handleCLICredential(cliCredential)
+            }
+        }
     }
 
     // MARK: - Usage Coordinators
