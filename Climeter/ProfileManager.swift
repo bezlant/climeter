@@ -58,13 +58,18 @@ class ProfileManager: ObservableObject {
     }
 
     private func refreshAuthenticatedIDs() {
-        cachedCredentials.removeAll()
+        var newCache: [UUID: Credential] = [:]
         for profile in profiles {
             if let credential = ProfileStore.loadCredentialModel(for: profile.id) {
-                cachedCredentials[profile.id] = credential
+                newCache[profile.id] = credential
+            } else if let existing = cachedCredentials[profile.id] {
+                // Keychain may be locked (sleep/dark wake) — keep cached credential
+                Log.profiles.info("[\(profile.id)] keychain read failed, keeping cached credential")
+                newCache[profile.id] = existing
             }
         }
-        authenticatedProfileIDs = Set(cachedCredentials.keys)
+        cachedCredentials = newCache
+        authenticatedProfileIDs = Set(newCache.keys)
     }
 
     func cachedCredential(for profileID: UUID) -> Credential? {

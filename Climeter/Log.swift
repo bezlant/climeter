@@ -117,4 +117,10 @@ enum Log {
         default:                           return "OSStatus(\(status))"
         }
     }
+
+    static func isTransientKeychainError(_ status: OSStatus) -> Bool {
+        status == errSecInteractionNotAllowed  // -25308
+            || status == -25320               // errSecInDarkWake
+            || status == -60008               // errAuthorizationInternal
+    }
 }
