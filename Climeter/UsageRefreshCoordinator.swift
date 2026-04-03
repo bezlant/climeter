@@ -159,7 +159,7 @@ class UsageRefreshCoordinator: ObservableObject {
             lastAutoStartResetTime = nil
             return
         }
-        let resetTime = usage.fiveHour.resetsAt
+        guard let resetTime = usage.fiveHour.resetsAt else { return }
         guard lastAutoStartResetTime != resetTime else { return }
         lastAutoStartResetTime = resetTime
         onAutoStart?(credential)

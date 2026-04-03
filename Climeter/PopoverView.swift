@@ -249,7 +249,8 @@ struct UsageRow: View {
     }
 
     private var countdown: String {
-        let interval = window.resetsAt.timeIntervalSince(currentTime)
+        guard let resetsAt = window.resetsAt else { return "—" }
+        let interval = resetsAt.timeIntervalSince(currentTime)
         guard interval > 0 else { return "Resetting..." }
 
         let hours = Int(interval) / 3600

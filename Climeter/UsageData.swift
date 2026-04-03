@@ -2,7 +2,7 @@ import Foundation
 
 struct UsageWindow: Codable {
     let utilization: Double
-    let resetsAt: Date
+    let resetsAt: Date?
 
     private enum CodingKeys: String, CodingKey {
         case utilization
