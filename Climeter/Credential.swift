@@ -6,6 +6,7 @@ struct Credential {
     var expiresAt: Date
     var subscriptionType: String?
     var rateLimitTier: String?
+    var accountUUID: String?
 
     var isExpired: Bool {
         expiresAt < Date.now.addingTimeInterval(5 * 60)
@@ -31,6 +32,7 @@ struct Credential {
 
         self.subscriptionType = oauth["subscriptionType"] as? String
         self.rateLimitTier = oauth["rateLimitTier"] as? String
+        self.accountUUID = oauth["accountUUID"] as? String
     }
 
     func toJSONString() -> String {
@@ -41,6 +43,7 @@ struct Credential {
         ]
         if let subscriptionType { oauth["subscriptionType"] = subscriptionType }
         if let rateLimitTier { oauth["rateLimitTier"] = rateLimitTier }
+        if let accountUUID { oauth["accountUUID"] = accountUUID }
 
         let wrapper: [String: Any] = ["claudeAiOauth": oauth]
         guard let data = try? JSONSerialization.data(withJSONObject: wrapper),

@@ -79,6 +79,45 @@ enum ClaudeAPIService {
         return refreshed
     }
 
+    struct AccountProfile {
+        let uuid: String
+        let displayName: String
+    }
+
+    static func fetchProfile(credential: Credential) async throws -> AccountProfile {
+        let url = URL(string: "https://api.anthropic.com/api/oauth/profile")!
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(credential.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
+
+        Log.api.info("fetchProfile: GET /api/oauth/profile")
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ClaudeAPIError.invalidResponse
+        }
+
+        Log.api.info("fetchProfile: HTTP \(httpResponse.statusCode)")
+        guard httpResponse.statusCode == 200 else {
+            throw ClaudeAPIError.httpError(httpResponse.statusCode)
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let account = json["account"] as? [String: Any],
+              let uuid = account["uuid"] as? String else {
+            throw ClaudeAPIError.invalidResponse
+        }
+
+        let displayName = account["full_name"] as? String
+            ?? account["display_name"] as? String
+            ?? "Account"
+
+        return AccountProfile(uuid: uuid, displayName: displayName)
+    }
+
     static func startSession(credential: Credential) async {
         let url = URL(string: "https://api.anthropic.com/v1/messages")!
 

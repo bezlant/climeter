@@ -16,6 +16,7 @@ class ProfileManager: ObservableObject {
     private var lastAutoSwitchDate: Date?
     private let powerMonitor = PowerStateMonitor()
     private var hasResumedSinceLastSleep = false
+    private var cliMonitorTimer: Timer?
 
     // Convenience for menu bar: usage data for CLI-active profile
     var cliActiveUsageData: UsageData? {
@@ -42,18 +43,8 @@ class ProfileManager: ObservableObject {
         loadCLIActiveProfileID()
         Log.profiles.info("init: \(self.profiles.count) profiles, \(self.authenticatedProfileIDs.count) authenticated, cliActive=\(self.cliActiveProfileID?.uuidString ?? "none")")
         setupAllCoordinators()
-
-        // Read CLI keychain on background thread to avoid blocking the UI
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self else { return }
-            Log.profiles.info("init: reading CLI keychain (background thread)...")
-            let cliCredential = ClaudeCodeSyncService.readCLICredential()
-            Log.profiles.info("init: CLI keychain read done, credential=\(cliCredential != nil)")
-            DispatchQueue.main.async {
-                self.handleCLICredential(cliCredential)
-            }
-        }
-
+        backfillAccountUUIDs()
+        startCLIMonitoring()
         setupPowerMonitor()
     }
 
@@ -98,18 +89,155 @@ class ProfileManager: ObservableObject {
         }
     }
 
-    private func handleCLICredential(_ cliCredential: Credential?) {
-        if hasAnyAuthenticated { return }
+    // MARK: - CLI Account Detection
 
+    private func startCLIMonitoring() {
+        // Initial check after short delay (gives backfill time)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            self?.detectCLIAccountChange()
+        }
+        cliMonitorTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            self?.detectCLIAccountChange()
+        }
+    }
+
+    private func stopCLIMonitoring() {
+        cliMonitorTimer?.invalidate()
+        cliMonitorTimer = nil
+    }
+
+    private func detectCLIAccountChange() {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let cliCredential = ClaudeCodeSyncService.readCLICredential()
+            DispatchQueue.main.async {
+                self?.processCLICredential(cliCredential)
+            }
+        }
+    }
+
+    private func processCLICredential(_ cliCredential: Credential?) {
         guard let cliCredential else { return }
 
-        let target = profiles.first { !authenticatedProfileIDs.contains($0.id) }
-            ?? profiles[0]
-        try? ProfileStore.saveCredentialModel(cliCredential, for: target.id)
-        cliActiveProfileID = target.id
-        ProfileStore.saveCLIActiveProfileID(target.id)
+        // Quick check: if tokens match CLI-active profile, nothing changed
+        if let activeID = cliActiveProfileID,
+           let cached = cachedCredentials[activeID] {
+            if cached.refreshToken == cliCredential.refreshToken
+                || cached.accessToken == cliCredential.accessToken {
+                return
+            }
+        }
+
+        Log.profiles.info("detectCLI: credential changed, identifying account...")
+
+        Task {
+            await self.identifyAndSyncAccount(cliCredential)
+        }
+    }
+
+    @MainActor
+    private func identifyAndSyncAccount(_ cliCredential: Credential) async {
+        var credential = cliCredential
+
+        // Refresh expired token before identifying account
+        if credential.isExpired {
+            Log.profiles.info("detectCLI: token expired, refreshing first...")
+            if let refreshed = try? await ClaudeAPIService.refreshToken(credential) {
+                credential = refreshed
+            }
+        }
+
+        guard let apiProfile = try? await ClaudeAPIService.fetchProfile(credential: credential) else {
+            Log.profiles.warning("detectCLI: fetchProfile failed")
+            // Fallback: bootstrap only (no authenticated profiles yet)
+            if !hasAnyAuthenticated {
+                let target = profiles.first { !authenticatedProfileIDs.contains($0.id) } ?? profiles[0]
+                saveAndActivate(credential: credential, profileID: target.id)
+            }
+            return
+        }
+
+        credential.accountUUID = apiProfile.uuid
+        Log.profiles.info("detectCLI: account=\(apiProfile.uuid) name=\(apiProfile.displayName)")
+
+        // Match by accountUUID
+        for profile in profiles {
+            if let stored = cachedCredentials[profile.id],
+               stored.accountUUID == apiProfile.uuid {
+                Log.profiles.info("detectCLI: matched existing profile '\(profile.name)'")
+                saveAndActivate(credential: credential, profileID: profile.id)
+                return
+            }
+        }
+
+        // Eagerly resolve profiles with nil accountUUID (migration/backfill race)
+        for profile in profiles {
+            guard let stored = cachedCredentials[profile.id],
+                  stored.accountUUID == nil else { continue }
+            Log.profiles.info("detectCLI: resolving accountUUID for '\(profile.name)'...")
+            if let storedProfile = try? await ClaudeAPIService.fetchProfile(credential: stored) {
+                var updated = stored
+                updated.accountUUID = storedProfile.uuid
+                cachedCredentials[profile.id] = updated
+                try? ProfileStore.saveCredentialModel(updated, for: profile.id)
+                if storedProfile.uuid == apiProfile.uuid {
+                    Log.profiles.info("detectCLI: resolved match → '\(profile.name)'")
+                    saveAndActivate(credential: credential, profileID: profile.id)
+                    return
+                }
+            }
+        }
+
+        // New account — assign to first unauthenticated profile or create one
+        if let target = profiles.first(where: { !authenticatedProfileIDs.contains($0.id) }) {
+            Log.profiles.info("detectCLI: new account → unauthenticated profile '\(target.name)'")
+            saveAndActivate(credential: credential, profileID: target.id)
+        } else {
+            let newProfile = Profile(name: apiProfile.displayName)
+            profiles.append(newProfile)
+            ProfileStore.saveProfiles(profiles)
+            Log.profiles.info("detectCLI: new account → created profile '\(apiProfile.displayName)'")
+            saveAndActivate(credential: credential, profileID: newProfile.id)
+        }
+    }
+
+    private func saveAndActivate(credential: Credential, profileID: UUID) {
+        cachedCredentials[profileID] = credential
+        try? ProfileStore.saveCredentialModel(credential, for: profileID)
         refreshAuthenticatedIDs()
-        setupCoordinator(for: target.id)
+        if cliActiveProfileID != profileID {
+            cliActiveProfileID = profileID
+            ProfileStore.saveCLIActiveProfileID(profileID)
+        }
+        if coordinators[profileID] == nil {
+            setupCoordinator(for: profileID)
+        }
+    }
+
+    /// Backfill accountUUID for profiles that were created before account detection
+    private func backfillAccountUUIDs() {
+        let needsBackfill = profiles.filter { p in
+            guard let cred = cachedCredentials[p.id] else { return false }
+            return cred.accountUUID == nil
+        }
+        guard !needsBackfill.isEmpty else { return }
+        Log.profiles.info("backfill: \(needsBackfill.count) profiles need accountUUID")
+
+        for profile in needsBackfill {
+            guard let credential = cachedCredentials[profile.id] else { continue }
+            Task {
+                guard let apiProfile = try? await ClaudeAPIService.fetchProfile(credential: credential) else {
+                    Log.profiles.error("backfill: failed for '\(profile.name)'")
+                    return
+                }
+                await MainActor.run {
+                    var updated = self.cachedCredentials[profile.id] ?? credential
+                    updated.accountUUID = apiProfile.uuid
+                    self.cachedCredentials[profile.id] = updated
+                    try? ProfileStore.saveCredentialModel(updated, for: profile.id)
+                    Log.profiles.info("backfill: set accountUUID for '\(profile.name)' → \(apiProfile.uuid)")
+                }
+            }
+        }
     }
 
     private func setupPowerMonitor() {
@@ -156,13 +284,8 @@ class ProfileManager: ObservableObject {
             }
         }
 
-        // Also re-read CLI keychain for any credential changes during sleep
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let cliCredential = ClaudeCodeSyncService.readCLICredential()
-            DispatchQueue.main.async {
-                self?.handleCLICredential(cliCredential)
-            }
-        }
+        // Re-check CLI keychain for any credential changes during sleep
+        detectCLIAccountChange()
     }
 
     // MARK: - Usage Coordinators
@@ -191,25 +314,6 @@ class ProfileManager: ObservableObject {
                     Log.profiles.info("[\(profileID)] is CLI-active, writing back to CLI keychain...")
                     ClaudeCodeSyncService.writeCLICredential(refreshed)
                 }
-            },
-            syncCLICredential: { [weak self] in
-                let isCLIActive = self?.cliActiveProfileID == profileID
-                guard isCLIActive else {
-                    Log.coordinator.debug("[\(profileID)] skipping CLI sync — not CLI-active profile")
-                    return
-                }
-                Log.coordinator.info("[\(profileID)] reading CLI keychain for sync...")
-                guard let fresh = ClaudeCodeSyncService.readCLICredential() else {
-                    Log.coordinator.info("[\(profileID)] CLI keychain returned nil")
-                    return
-                }
-                guard fresh.refreshToken != self?.cachedCredentials[profileID]?.refreshToken else {
-                    Log.coordinator.debug("[\(profileID)] CLI credential unchanged (same refresh token)")
-                    return
-                }
-                Log.coordinator.info("[\(profileID)] CLI credential has newer refresh token, updating cache")
-                self?.cachedCredentials[profileID] = fresh
-                try? ProfileStore.saveCredentialModel(fresh, for: profileID)
             },
             onAutoStart: { [weak self] credential in
                 guard self?.cliActiveProfileID == profileID else { return }
@@ -274,33 +378,6 @@ class ProfileManager: ObservableObject {
         }
     }
 
-    private func syncCLICredential(_ cliCredential: Credential?) {
-        guard let cliCredential else { return }
-
-        for profile in profiles {
-            if let stored = cachedCredentials[profile.id],
-               stored.accessToken == cliCredential.accessToken {
-                if cliActiveProfileID != profile.id {
-                    cliActiveProfileID = profile.id
-                    ProfileStore.saveCLIActiveProfileID(profile.id)
-                }
-                return
-            }
-        }
-
-        // New account — create profile
-        let newProfile = Profile(name: "Account \(profiles.count + 1)")
-        profiles.append(newProfile)
-        ProfileStore.saveProfiles(profiles)
-
-        try? ProfileStore.saveCredentialModel(cliCredential, for: newProfile.id)
-        cliActiveProfileID = newProfile.id
-        ProfileStore.saveCLIActiveProfileID(newProfile.id)
-        refreshAuthenticatedIDs()
-
-        setupCoordinator(for: newProfile.id)
-    }
-
     func activateForCLI(profileID: UUID) {
         guard let credential = cachedCredentials[profileID] else { return }
         Log.profiles.info("activateForCLI: switching to \(profileID), writing to CLI keychain...")
@@ -351,6 +428,7 @@ class ProfileManager: ObservableObject {
     }
 
     deinit {
+        stopCLIMonitoring()
         for coordinator in coordinators.values {
             coordinator.stopPolling()
         }
