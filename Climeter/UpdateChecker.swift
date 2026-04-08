@@ -24,7 +24,7 @@ class UpdateChecker: ObservableObject {
     }
 
     func checkForUpdates() {
-        let urlString = "https://api.github.com/repos/bezlant/climeter/releases/latest"
+        let urlString = "https://api.github.com/repos/bezlant/cliMeter/releases/latest"
         guard let url = URL(string: urlString) else { return }
 
         var request = URLRequest(url: url)

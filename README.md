@@ -1,16 +1,20 @@
-# Climeter
+# cliMeter
 
 macOS menu bar app that tracks your Claude Code API usage in real time.
 
 See your session and weekly limits at a glance. Know when you're running low before you hit a wall.
 
-![macOS](https://img.shields.io/badge/macOS-14%2B-black) ![Swift](https://img.shields.io/badge/Swift-5.9-orange)
+[![GitHub release](https://img.shields.io/github/v/release/bezlant/cliMeter)](https://github.com/bezlant/cliMeter/releases/latest)
+[![GitHub downloads](https://img.shields.io/github/downloads/bezlant/cliMeter/total)](https://github.com/bezlant/cliMeter/releases)
+![macOS](https://img.shields.io/badge/macOS-14%2B-black)
+![Swift](https://img.shields.io/badge/Swift-5.9-orange)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ![Climeter](screenshot.png)
 
 ## Why
 
-Claude Code doesn't show how much of your rate limit you've used. You find out when you're blocked. Climeter fixes that — a tiny progress bar in your menu bar that stays out of your way.
+Claude Code doesn't show how much of your rate limit you've used. You find out when you're blocked. cliMeter fixes that — a tiny progress bar in your menu bar that stays out of your way.
 
 ## Features
 
@@ -23,21 +27,32 @@ Claude Code doesn't show how much of your rate limit you've used. You find out w
 
 ## Install
 
-Download the latest release from [Releases](https://github.com/bezlant/climeter/releases) or build from source:
+### Homebrew (recommended)
 
-```
-git clone git@github.com:bezlant/climeter.git
-cd climeter
-xcodebuild -scheme Climeter -configuration Release build
+```bash
+brew install bezlant/tap/climeter
 ```
 
-The built app will be in `~/Library/Developer/Xcode/DerivedData/Climeter-*/Build/Products/Release/Climeter.app`.
+### Manual download
+
+Download `Climeter.zip` from [the latest release](https://github.com/bezlant/cliMeter/releases/latest), unzip, and drag `Climeter.app` to `/Applications`.
+
+> **Note:** The app is not notarized. On first launch, right-click → Open, or go to System Settings → Privacy & Security → Open Anyway.
+
+### Build from source
+
+```bash
+git clone git@github.com:bezlant/cliMeter.git
+cd cliMeter
+xcodebuild -scheme Climeter -configuration Release -derivedDataPath build
+cp -R build/Build/Products/Release/Climeter.app /Applications/
+```
 
 ## Setup
 
-1. Open Climeter — it appears in your menu bar
+1. Open cliMeter — it appears in your menu bar
 2. Run `/login` in Claude Code
-3. Climeter detects the credentials automatically
+3. cliMeter detects the credentials automatically
 
 That's it. No API keys to paste, no config files to edit.
 
@@ -51,7 +66,7 @@ That's it. No API keys to paste, no config files to edit.
 
 ## How it works
 
-Climeter reads the OAuth credentials that Claude Code stores in the system Keychain. It polls the Anthropic usage API every 3 minutes and displays the result. When tokens expire, it refreshes them silently. All network calls go directly to Anthropic's servers.
+cliMeter reads the OAuth credentials that Claude Code stores in the system Keychain. It polls the Anthropic usage API every 3 minutes and displays the result. When tokens expire, it refreshes them silently. All network calls go directly to Anthropic's servers.
 
 ## Requirements
 
