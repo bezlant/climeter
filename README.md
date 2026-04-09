@@ -48,6 +48,14 @@ xcodebuild -scheme Climeter -configuration Release -derivedDataPath build
 cp -R build/Build/Products/Release/Climeter.app /Applications/
 ```
 
+## Update
+
+```bash
+brew upgrade climeter
+```
+
+New versions are published automatically — the Homebrew cask updates on every release.
+
 ## Setup
 
 1. Open cliMeter — it appears in your menu bar
