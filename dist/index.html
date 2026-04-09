@@ -81,13 +81,17 @@
     line-height: 1.7;
     -webkit-font-smoothing: antialiased;
     transition: background-color 0.3s, color 0.3s;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
 
   ::selection { background: var(--text-heading); color: var(--bg); }
   a { color: var(--accent); text-decoration: none; transition: all 0.2s; }
   a:hover { color: var(--accent-color); }
 
-  .container { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+  .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+  .main { flex: 1; display: flex; flex-direction: column; justify-content: center; }
 
   /* Nav — matches portfolio */
   nav {
@@ -100,7 +104,7 @@
   }
 
   .nav-inner {
-    max-width: 720px;
+    max-width: 960px;
     margin: 0 auto;
     padding: 14px 24px;
     display: flex;
@@ -154,9 +158,16 @@
   .theme-toggle:hover { color: var(--text-heading); border-color: var(--text); }
 
   /* Hero */
+  .hero-row {
+    display: flex;
+    align-items: center;
+    gap: 48px;
+    padding: 48px 0 32px;
+  }
+
   .hero {
-    padding: 80px 0 56px;
-    text-align: center;
+    flex: 1;
+    text-align: left;
   }
 
   .hero-badge {
@@ -182,19 +193,19 @@
   }
 
   .hero h1 {
-    font-size: 44px;
+    font-size: 40px;
     font-weight: 700;
     color: var(--text-heading);
     letter-spacing: -0.04em;
     line-height: 1.1;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
 
   .hero-sub {
-    font-size: 17px;
-    line-height: 1.7;
+    font-size: 16px;
+    line-height: 1.6;
     max-width: 460px;
-    margin: 0 auto 40px;
+    margin: 0 0 28px;
     color: var(--text);
   }
 
@@ -203,9 +214,9 @@
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 16px 20px;
+    padding: 14px 18px;
     max-width: 420px;
-    margin: 0 auto 12px;
+    margin: 0 0 10px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -244,7 +255,7 @@
     font-size: 13px;
     color: var(--text);
     text-align: center;
-    margin-bottom: 56px;
+    max-width: 420px;
   }
 
   .install-alt a {
@@ -259,7 +270,7 @@
   /* App mockup — realistic macOS popover */
   .mockup-section {
     text-align: center;
-    padding: 0 0 56px;
+    flex-shrink: 0;
   }
 
   .app-mock {
@@ -413,9 +424,9 @@
   }
 
   .mock-caption {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--text);
-    margin-top: 20px;
+    margin-top: 12px;
   }
 
   /* Menu bar mock at top */
@@ -460,7 +471,7 @@
 
   /* Features */
   .features {
-    padding: 48px 0;
+    padding: 24px 0;
   }
 
   .section-title {
@@ -468,7 +479,7 @@
     font-weight: 600;
     color: var(--text-heading);
     letter-spacing: -0.01em;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
   }
 
   .features-grid {
@@ -483,7 +494,7 @@
 
   .feature {
     background: var(--bg-card);
-    padding: 20px 24px;
+    padding: 16px 20px;
     transition: background 0.2s;
   }
 
@@ -504,7 +515,8 @@
 
   /* Footer */
   footer {
-    padding: 24px 0;
+    padding: 16px 0;
+    margin-top: auto;
     border-top: 1px solid var(--border);
     text-align: center;
     font-size: 13px;
@@ -514,9 +526,13 @@
   footer a { color: var(--accent); }
   footer a:hover { color: var(--accent-color); }
 
-  @media (max-width: 640px) {
+  @media (max-width: 700px) {
+    .hero-row { flex-direction: column; gap: 24px; padding: 40px 0 24px; }
+    .hero { text-align: center; }
     .hero h1 { font-size: 32px; }
-    .hero { padding: 64px 0 40px; }
+    .hero-sub { margin: 0 auto 24px; }
+    .install-block { margin: 0 auto 10px; }
+    .install-alt { text-align: center; }
     .features-grid { grid-template-columns: 1fr; }
   }
 </style>
@@ -538,81 +554,82 @@
   </div>
 </nav>
 
-<div class="container">
+<div class="main container">
 
-  <section class="hero">
-    <div class="hero-badge"><span class="dot"></span> v1.0.8</div>
-    <h1>Know your limits<br>before they know you.</h1>
-    <p class="hero-sub">
-      macOS menu bar app that tracks your Claude Code rate limits in real time.
-      Session and weekly usage at a glance.
-    </p>
+  <div class="hero-row">
+    <section class="hero">
+      <div class="hero-badge"><span class="dot"></span> v1.0.8</div>
+      <h1>Know your limits<br>before they know you.</h1>
+      <p class="hero-sub">
+        macOS menu bar app that tracks your Claude Code rate limits in real time.
+        Session and weekly usage at a glance.
+      </p>
 
-    <div class="install-block">
-      <div class="install-cmd">
-        <span class="prompt">$</span> brew install bezlant/tap/climeter
-      </div>
-      <button class="copy-btn" onclick="navigator.clipboard.writeText('brew install bezlant/tap/climeter');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button>
-    </div>
-    <p class="install-alt">or <a href="https://github.com/bezlant/cliMeter/releases/latest">download from GitHub</a></p>
-  </section>
-
-  <!-- App mockup -->
-  <section class="mockup-section">
-    <div class="mock-menubar">
-      <div class="mock-menubar-item">
-        <div class="mock-menubar-bar"><div class="mock-menubar-fill" style="width:42%"></div></div>
-      </div>
-    </div>
-
-    <div class="app-mock">
-      <div class="mock-profile-card">
-        <div class="mock-profile-header">
-          <span class="mock-profile-name">Personal</span>
-          <div class="mock-cli-badge">
-            <span class="dot"></span>
-            <span>CLI</span>
-          </div>
+      <div class="install-block">
+        <div class="install-cmd">
+          <span class="prompt">$</span> brew install bezlant/tap/climeter
         </div>
+        <button class="copy-btn" onclick="navigator.clipboard.writeText('brew install bezlant/tap/climeter');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button>
+      </div>
+      <p class="install-alt">or <a href="https://github.com/bezlant/cliMeter/releases/latest">download from GitHub</a></p>
+    </section>
 
-        <div class="mock-usage-row">
-          <div class="mock-usage-header">
-            <span class="mock-usage-label">Session</span>
-            <div class="mock-usage-right">
-              <span class="mock-status-icon green">&#10003;</span>
-              <span class="mock-usage-pct green">42%</span>
-              <span class="mock-usage-sep">&middot;</span>
-              <span class="mock-usage-time">2h 51m</span>
+    <section class="mockup-section">
+      <div class="mock-menubar">
+        <div class="mock-menubar-item">
+          <div class="mock-menubar-bar"><div class="mock-menubar-fill" style="width:42%"></div></div>
+        </div>
+      </div>
+
+      <div class="app-mock">
+        <div class="mock-profile-card">
+          <div class="mock-profile-header">
+            <span class="mock-profile-name">Personal</span>
+            <div class="mock-cli-badge">
+              <span class="dot"></span>
+              <span>CLI</span>
             </div>
           </div>
-          <div class="mock-bar"><div class="mock-bar-fill bar-green" style="width:42%"></div></div>
-        </div>
 
-        <div class="mock-usage-row">
-          <div class="mock-usage-header">
-            <span class="mock-usage-label">Week</span>
-            <div class="mock-usage-right">
-              <span class="mock-status-icon orange">&#9888;</span>
-              <span class="mock-usage-pct orange">67%</span>
-              <span class="mock-usage-sep">&middot;</span>
-              <span class="mock-usage-time">3d 8h</span>
+          <div class="mock-usage-row">
+            <div class="mock-usage-header">
+              <span class="mock-usage-label">Session</span>
+              <div class="mock-usage-right">
+                <span class="mock-status-icon green">&#10003;</span>
+                <span class="mock-usage-pct green">42%</span>
+                <span class="mock-usage-sep">&middot;</span>
+                <span class="mock-usage-time">2h 51m</span>
+              </div>
             </div>
+            <div class="mock-bar"><div class="mock-bar-fill bar-green" style="width:42%"></div></div>
           </div>
-          <div class="mock-bar"><div class="mock-bar-fill bar-orange" style="width:67%"></div></div>
+
+          <div class="mock-usage-row">
+            <div class="mock-usage-header">
+              <span class="mock-usage-label">Week</span>
+              <div class="mock-usage-right">
+                <span class="mock-status-icon orange">&#9888;</span>
+                <span class="mock-usage-pct orange">67%</span>
+                <span class="mock-usage-sep">&middot;</span>
+                <span class="mock-usage-time">3d 8h</span>
+              </div>
+            </div>
+            <div class="mock-bar"><div class="mock-bar-fill bar-orange" style="width:67%"></div></div>
+          </div>
+        </div>
+
+        <div class="mock-footer">
+          <span class="mock-footer-icon">&#9881;</span>
+          <div class="mock-footer-right">
+            <span class="mock-footer-icon">&#8635;</span>
+            <span class="mock-footer-icon">&#9211;</span>
+          </div>
         </div>
       </div>
 
-      <div class="mock-footer">
-        <span class="mock-footer-icon">&#9881;</span>
-        <div class="mock-footer-right">
-          <span class="mock-footer-icon">&#8635;</span>
-          <span class="mock-footer-icon">&#9211;</span>
-        </div>
-      </div>
-    </div>
-
-    <p class="mock-caption">Lives in your menu bar. Color-coded: green, orange, red.</p>
-  </section>
+      <p class="mock-caption">Lives in your menu bar. Color-coded.</p>
+    </section>
+  </div>
 
   <hr class="divider">
 
