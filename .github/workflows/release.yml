@@ -36,3 +36,49 @@ jobs:
           TAG_NAME: ${{ github.event.release.tag_name }}
         run: |
           gh release upload "$TAG_NAME" Climeter.zip --clobber
+
+      - name: Update Homebrew cask
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          VERSION="${TAG_NAME#v}"
+          SHA256=$(shasum -a 256 Climeter.zip | awk '{print $1}')
+
+          git clone https://x-access-token:${GH_TOKEN}@github.com/bezlant/homebrew-tap.git /tmp/homebrew-tap
+          cd /tmp/homebrew-tap
+
+          cat > Casks/climeter.rb << EOF
+          cask "climeter" do
+            version "${VERSION}"
+            sha256 "${SHA256}"
+
+            url "https://github.com/bezlant/cliMeter/releases/download/v#{version}/Climeter.zip"
+            name "cliMeter"
+            desc "macOS menu bar app for tracking Claude Code API usage"
+            homepage "https://github.com/bezlant/cliMeter"
+
+            depends_on macos: ">= :sonoma"
+
+            app "Climeter.app"
+
+            postflight do
+              system_command "/usr/bin/xattr",
+                             args: ["-d", "com.apple.quarantine", "#{appdir}/Climeter.app"],
+                             sudo: false
+            end
+
+            zap trash: [
+              "~/Library/Logs/Climeter",
+            ]
+          end
+          EOF
+
+          # Remove leading whitespace from heredoc
+          sed -i '' 's/^          //' Casks/climeter.rb
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/climeter.rb
+          git commit -m "chore: update climeter to ${VERSION}"
+          git push
