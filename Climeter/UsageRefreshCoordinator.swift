@@ -12,7 +12,7 @@ class UsageRefreshCoordinator: ObservableObject {
     private var timer: Timer?
     private let baseInterval: TimeInterval = 180.0
     private var currentInterval: TimeInterval = 180.0
-    private let maxInterval: TimeInterval = 900.0
+    private let maxInterval: TimeInterval = 300.0
 
     /// Reads the CLI keychain and updates the credential cache
     /// if a newer credential is available.
