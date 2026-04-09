@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cliMeter — Claude Code Rate Limit Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  (function() {
+    var saved = localStorage.getItem('theme');
+    if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    }
+  })();
+</script>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #fafafa;
+    --bg-card: #ffffff;
+    --bg-subtle: #f4f4f5;
+    --text: #52525b;
+    --text-bright: #27272a;
+    --text-heading: #09090b;
+    --accent: #18181b;
+    --accent-color: #2563eb;
+    --border: #e4e4e7;
+    --nav-bg: rgba(250, 250, 250, 0.9);
+    --shadow: rgba(0,0,0,0.04);
+    --shadow-hover: rgba(0,0,0,0.06);
+    --font-sans: 'Inter', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* App mock colors */
+    --mock-bg: #f2f2f7;
+    --mock-card: #ffffff;
+    --mock-border: rgba(0,0,0,0.06);
+    --mock-text: #1c1c1e;
+    --mock-secondary: #8e8e93;
+    --mock-bar-bg: rgba(0,0,0,0.06);
+    --mock-material: rgba(255,255,255,0.85);
+  }
+
+  .dark {
+    --bg: #0f0f0f;
+    --bg-card: #1a1a1a;
+    --bg-subtle: #1f1f1f;
+    --text: #a1a1aa;
+    --text-bright: #d4d4d8;
+    --text-heading: #f4f4f5;
+    --accent: #f4f4f5;
+    --accent-color: #60a5fa;
+    --border: #27272a;
+    --nav-bg: rgba(15, 15, 15, 0.9);
+    --shadow: rgba(0,0,0,0.2);
+    --shadow-hover: rgba(0,0,0,0.3);
+
+    --mock-bg: #1c1c1e;
+    --mock-card: #2c2c2e;
+    --mock-border: rgba(255,255,255,0.08);
+    --mock-text: #f2f2f7;
+    --mock-secondary: #98989d;
+    --mock-bar-bg: rgba(255,255,255,0.08);
+    --mock-material: rgba(44,44,46,0.85);
+  }
+
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.3s, color 0.3s;
+  }
+
+  ::selection { background: var(--text-heading); color: var(--bg); }
+  a { color: var(--accent); text-decoration: none; transition: all 0.2s; }
+  a:hover { color: var(--accent-color); }
+
+  .container { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+
+  /* Nav — matches portfolio */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--nav-bg);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .nav-name {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-heading);
+  }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 20px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .nav-links a:hover { color: var(--text-heading); }
+
+  .theme-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .theme-toggle:hover { color: var(--text-heading); border-color: var(--text); }
+
+  /* Hero */
+  .hero {
+    padding: 80px 0 56px;
+    text-align: center;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.08);
+    border: 1px solid rgba(34, 197, 94, 0.15);
+    padding: 5px 14px;
+    border-radius: 20px;
+    margin-bottom: 24px;
+  }
+
+  .hero-badge .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #22c55e;
+  }
+
+  .hero h1 {
+    font-size: 44px;
+    font-weight: 700;
+    color: var(--text-heading);
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+
+  .hero-sub {
+    font-size: 17px;
+    line-height: 1.7;
+    max-width: 460px;
+    margin: 0 auto 40px;
+    color: var(--text);
+  }
+
+  /* Install block */
+  .install-block {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    max-width: 420px;
+    margin: 0 auto 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .install-block:hover {
+    border-color: var(--text-heading);
+    box-shadow: 0 2px 12px var(--shadow);
+  }
+
+  .install-cmd {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-bright);
+  }
+
+  .install-cmd .prompt { color: var(--accent-color); }
+
+  .copy-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 12px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .copy-btn:hover { color: var(--text-heading); border-color: var(--text); }
+
+  .install-alt {
+    font-size: 13px;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 56px;
+  }
+
+  .install-alt a {
+    color: var(--accent-color);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: rgba(37, 99, 235, 0.3);
+  }
+
+  .install-alt a:hover { text-decoration-color: var(--accent-color); }
+
+  /* App mockup — realistic macOS popover */
+  .mockup-section {
+    text-align: center;
+    padding: 0 0 56px;
+  }
+
+  .app-mock {
+    display: inline-block;
+    width: 280px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--mock-material);
+    backdrop-filter: blur(40px);
+    border: 1px solid var(--mock-border);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+    text-align: left;
+  }
+
+  .dark .app-mock {
+    box-shadow: 0 8px 40px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2);
+  }
+
+  .mock-profile-card {
+    padding: 12px;
+    margin: 10px;
+    background: var(--mock-card);
+    border-radius: 10px;
+    border: 1px solid var(--mock-border);
+  }
+
+  .dark .mock-profile-card {
+    background: rgba(255,255,255,0.05);
+  }
+
+  .mock-profile-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .mock-profile-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--mock-text);
+    font-family: var(--font-sans);
+  }
+
+  .mock-cli-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: rgba(34, 197, 94, 0.12);
+  }
+
+  .mock-cli-badge .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #22c55e;
+  }
+
+  .mock-cli-badge span {
+    font-size: 9px;
+    font-weight: 700;
+    color: #22c55e;
+    font-family: var(--font-sans);
+  }
+
+  .mock-usage-row {
+    margin-bottom: 10px;
+  }
+
+  .mock-usage-row:last-of-type { margin-bottom: 0; }
+
+  .mock-usage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+  }
+
+  .mock-usage-label {
+    font-size: 11px;
+    color: var(--mock-secondary);
+    font-family: var(--font-sans);
+  }
+
+  .mock-usage-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mock-usage-pct {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .mock-usage-sep {
+    font-size: 10px;
+    color: var(--mock-secondary);
+    opacity: 0.5;
+  }
+
+  .mock-usage-time {
+    font-size: 11px;
+    color: var(--mock-secondary);
+    font-family: var(--font-sans);
+  }
+
+  .mock-status-icon {
+    font-size: 9px;
+  }
+
+  .mock-bar {
+    height: 8px;
+    background: var(--mock-bar-bg);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .mock-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.8s ease;
+  }
+
+  .green { color: #22c55e; }
+  .orange { color: #f59e0b; }
+  .bar-green { background: linear-gradient(90deg, #22c55e, rgba(34, 197, 94, 0.7)); }
+  .bar-orange { background: linear-gradient(90deg, #f59e0b, rgba(245, 158, 11, 0.7)); }
+
+  .mock-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 14px 8px;
+    border-top: 1px solid var(--mock-border);
+  }
+
+  .mock-footer-icon {
+    font-size: 12px;
+    color: var(--mock-secondary);
+    cursor: default;
+    padding: 4px;
+  }
+
+  .mock-footer-right {
+    display: flex;
+    gap: 8px;
+  }
+
+  .mock-caption {
+    font-size: 13px;
+    color: var(--text);
+    margin-top: 20px;
+  }
+
+  /* Menu bar mock at top */
+  .mock-menubar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 0 8px;
+  }
+
+  .mock-menubar-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+  }
+
+  .mock-menubar-bar {
+    width: 28px;
+    height: 6px;
+    background: var(--mock-bar-bg);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .mock-menubar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: #22c55e;
+  }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0;
+  }
+
+  /* Features */
+  .features {
+    padding: 48px 0;
+  }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-heading);
+    letter-spacing: -0.01em;
+    margin-bottom: 24px;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .feature {
+    background: var(--bg-card);
+    padding: 20px 24px;
+    transition: background 0.2s;
+  }
+
+  .feature:hover { background: var(--bg-subtle); }
+
+  .feature h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-heading);
+    margin-bottom: 4px;
+  }
+
+  .feature p {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text);
+  }
+
+  /* Footer */
+  footer {
+    padding: 24px 0;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  footer a { color: var(--accent); }
+  footer a:hover { color: var(--accent-color); }
+
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 32px; }
+    .hero { padding: 64px 0 40px; }
+    .features-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="nav-name">cliMeter</div>
+    <div class="nav-right">
+      <ul class="nav-links">
+        <li><a href="https://github.com/bezlant/cliMeter">GitHub</a></li>
+        <li><a href="https://github.com/bezlant/cliMeter/releases">Releases</a></li>
+      </ul>
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+        <span id="theme-icon">&#9790;</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <section class="hero">
+    <div class="hero-badge"><span class="dot"></span> v1.0.8</div>
+    <h1>Know your limits<br>before they know you.</h1>
+    <p class="hero-sub">
+      macOS menu bar app that tracks your Claude Code rate limits in real time.
+      Session and weekly usage at a glance.
+    </p>
+
+    <div class="install-block">
+      <div class="install-cmd">
+        <span class="prompt">$</span> brew install bezlant/tap/climeter
+      </div>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText('brew install bezlant/tap/climeter');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button>
+    </div>
+    <p class="install-alt">or <a href="https://github.com/bezlant/cliMeter/releases/latest">download from GitHub</a></p>
+  </section>
+
+  <!-- App mockup -->
+  <section class="mockup-section">
+    <div class="mock-menubar">
+      <div class="mock-menubar-item">
+        <div class="mock-menubar-bar"><div class="mock-menubar-fill" style="width:42%"></div></div>
+      </div>
+    </div>
+
+    <div class="app-mock">
+      <div class="mock-profile-card">
+        <div class="mock-profile-header">
+          <span class="mock-profile-name">Personal</span>
+          <div class="mock-cli-badge">
+            <span class="dot"></span>
+            <span>CLI</span>
+          </div>
+        </div>
+
+        <div class="mock-usage-row">
+          <div class="mock-usage-header">
+            <span class="mock-usage-label">Session</span>
+            <div class="mock-usage-right">
+              <span class="mock-status-icon green">&#10003;</span>
+              <span class="mock-usage-pct green">42%</span>
+              <span class="mock-usage-sep">&middot;</span>
+              <span class="mock-usage-time">2h 51m</span>
+            </div>
+          </div>
+          <div class="mock-bar"><div class="mock-bar-fill bar-green" style="width:42%"></div></div>
+        </div>
+
+        <div class="mock-usage-row">
+          <div class="mock-usage-header">
+            <span class="mock-usage-label">Week</span>
+            <div class="mock-usage-right">
+              <span class="mock-status-icon orange">&#9888;</span>
+              <span class="mock-usage-pct orange">67%</span>
+              <span class="mock-usage-sep">&middot;</span>
+              <span class="mock-usage-time">3d 8h</span>
+            </div>
+          </div>
+          <div class="mock-bar"><div class="mock-bar-fill bar-orange" style="width:67%"></div></div>
+        </div>
+      </div>
+
+      <div class="mock-footer">
+        <span class="mock-footer-icon">&#9881;</span>
+        <div class="mock-footer-right">
+          <span class="mock-footer-icon">&#8635;</span>
+          <span class="mock-footer-icon">&#9211;</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="mock-caption">Lives in your menu bar. Color-coded: green, orange, red.</p>
+  </section>
+
+  <hr class="divider">
+
+  <section class="features">
+    <div class="section-title">Features</div>
+    <div class="features-grid">
+      <div class="feature">
+        <h3>Multi-account</h3>
+        <p>Manage multiple Claude subscriptions. Switch between them from the menu bar.</p>
+      </div>
+      <div class="feature">
+        <h3>Auto-switch</h3>
+        <p>Hits 95%? Automatically rotates to your next account. No interruptions.</p>
+      </div>
+      <div class="feature">
+        <h3>Zero config</h3>
+        <p>Reads credentials from Claude Code's Keychain. Run /login, done.</p>
+      </div>
+      <div class="feature">
+        <h3>Private</h3>
+        <p>No analytics, no telemetry. Only talks to api.anthropic.com. Open source.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="container">
+    Built by <a href="https://bezlant.github.io">Anthony</a> &middot; MIT License &middot; Native Swift, zero dependencies
+  </div>
+</footer>
+
+<script>
+  const toggle = document.getElementById('theme-toggle');
+  const icon = document.getElementById('theme-icon');
+  const html = document.documentElement;
+
+  function setTheme(dark) {
+    html.classList.toggle('dark', dark);
+    icon.textContent = dark ? '\u2606' : '\u263E';
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+  }
+
+  const saved = localStorage.getItem('theme');
+  if (saved) { setTheme(saved === 'dark'); }
+  else { setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches); }
+
+  toggle.addEventListener('click', () => setTheme(!html.classList.contains('dark')));
+</script>
+
+</body>
+</html>
