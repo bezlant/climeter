@@ -4,6 +4,8 @@ enum ProfileStore {
     private static let profilesKey = "profiles"
     private static let activeProfileIDKey = "activeProfileID"
     private static let cliActiveProfileIDKey = "cliActiveProfileID"
+    private static let autoSwitchEnabledKey = "autoSwitchEnabled"
+    private static let autoSwitchThresholdKey = "autoSwitchThreshold"
     private static let defaults = UserDefaults.standard
 
     static func loadProfiles() -> [Profile] {
@@ -52,6 +54,27 @@ enum ProfileStore {
         } else {
             defaults.removeObject(forKey: cliActiveProfileIDKey)
         }
+    }
+
+    // MARK: - Auto-Switch Settings
+
+    static func loadAutoSwitchEnabled() -> Bool {
+        // Default to off if never set
+        if defaults.object(forKey: autoSwitchEnabledKey) == nil { return false }
+        return defaults.bool(forKey: autoSwitchEnabledKey)
+    }
+
+    static func saveAutoSwitchEnabled(_ enabled: Bool) {
+        defaults.set(enabled, forKey: autoSwitchEnabledKey)
+    }
+
+    static func loadAutoSwitchThreshold() -> Double {
+        let value = defaults.double(forKey: autoSwitchThresholdKey)
+        return value > 0 ? value : 95.0
+    }
+
+    static func saveAutoSwitchThreshold(_ threshold: Double) {
+        defaults.set(threshold, forKey: autoSwitchThresholdKey)
     }
 
     // Raw string credential operations (Keychain stores raw JSON)

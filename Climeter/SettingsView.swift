@@ -24,6 +24,20 @@ struct SettingsView: View {
                     }
             }
 
+            Section("Auto-Switch") {
+                Toggle("Switch accounts automatically", isOn: $profileManager.autoSwitchEnabled)
+
+                if profileManager.autoSwitchEnabled {
+                    HStack {
+                        Text("Threshold")
+                        Slider(value: $profileManager.autoSwitchThreshold, in: 50...100, step: 5)
+                        Text("\(Int(profileManager.autoSwitchThreshold))%")
+                            .monospacedDigit()
+                            .frame(width: 40, alignment: .trailing)
+                    }
+                }
+            }
+
             Section("Profiles") {
                 ForEach(profileManager.profiles) { profile in
                     HStack {
@@ -81,7 +95,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 350, height: 300)
+        .frame(width: 350, height: 400)
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {

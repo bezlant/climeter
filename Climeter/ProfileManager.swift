@@ -9,10 +9,16 @@ class ProfileManager: ObservableObject {
     @Published var cliActiveProfileID: UUID?
     @Published private(set) var authenticatedProfileIDs: Set<UUID> = []
 
+    @Published var autoSwitchEnabled: Bool = false {
+        didSet { ProfileStore.saveAutoSwitchEnabled(autoSwitchEnabled) }
+    }
+    @Published var autoSwitchThreshold: Double = 95.0 {
+        didSet { ProfileStore.saveAutoSwitchThreshold(autoSwitchThreshold) }
+    }
+
     private var coordinators: [UUID: UsageRefreshCoordinator] = [:]
     private var cancellables: [UUID: [AnyCancellable]] = [:]
     private var cachedCredentials: [UUID: Credential] = [:]
-    private let autoSwitchThreshold: Double = 95.0
     private var lastAutoSwitchDate: Date?
     private let powerMonitor = PowerStateMonitor()
     private var hasResumedSinceLastSleep = false
@@ -41,6 +47,8 @@ class ProfileManager: ObservableObject {
         loadProfiles()
         refreshAuthenticatedIDs()
         loadCLIActiveProfileID()
+        autoSwitchEnabled = ProfileStore.loadAutoSwitchEnabled()
+        autoSwitchThreshold = ProfileStore.loadAutoSwitchThreshold()
         Log.profiles.info("init: \(self.profiles.count) profiles, \(self.authenticatedProfileIDs.count) authenticated, cliActive=\(self.cliActiveProfileID?.uuidString ?? "none")")
         setupAllCoordinators()
         backfillAccountUUIDs()
@@ -350,7 +358,8 @@ class ProfileManager: ObservableObject {
     // MARK: - Auto-Switch
 
     private func checkAutoSwitch() {
-        guard let activeID = cliActiveProfileID,
+        guard autoSwitchEnabled,
+              let activeID = cliActiveProfileID,
               let activeData = allUsageData[activeID],
               activeData.fiveHour.utilization >= autoSwitchThreshold else { return }
 
