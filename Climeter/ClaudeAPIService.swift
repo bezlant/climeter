@@ -23,6 +23,7 @@ enum ClaudeAPIService {
 
         Log.api.info("fetchUsage: HTTP \(httpResponse.statusCode)")
         guard httpResponse.statusCode == 200 else {
+            logErrorResponse(httpResponse, data: data, label: "fetchUsage")
             throw ClaudeAPIError.httpError(httpResponse.statusCode)
         }
 
@@ -61,6 +62,7 @@ enum ClaudeAPIService {
 
         Log.api.info("refreshToken: HTTP \(httpResponse.statusCode)")
         guard httpResponse.statusCode == 200 else {
+            logErrorResponse(httpResponse, data: data, label: "refreshToken")
             throw ClaudeAPIError.tokenRefreshFailed(httpResponse.statusCode)
         }
 
@@ -102,6 +104,7 @@ enum ClaudeAPIService {
 
         Log.api.info("fetchProfile: HTTP \(httpResponse.statusCode)")
         guard httpResponse.statusCode == 200 else {
+            logErrorResponse(httpResponse, data: data, label: "fetchProfile")
             throw ClaudeAPIError.httpError(httpResponse.statusCode)
         }
 
@@ -116,6 +119,21 @@ enum ClaudeAPIService {
             ?? "Account"
 
         return AccountProfile(uuid: uuid, displayName: displayName)
+    }
+
+    /// Log diagnostics for non-200 HTTP responses (Retry-After header + body
+    /// snippet). Particularly useful for /api/oauth/usage 429s which Anthropic
+    /// is known to mishandle (see anthropics/claude-code#30930, #31637, #31021).
+    private static func logErrorResponse(_ response: HTTPURLResponse, data: Data, label: String) {
+        let retryAfter = response.value(forHTTPHeaderField: "Retry-After") ?? "absent"
+        let bodySnippet: String = {
+            guard !data.isEmpty,
+                  let str = String(data: data, encoding: .utf8) else {
+                return "(empty)"
+            }
+            return str.count > 500 ? String(str.prefix(500)) + "…" : str
+        }()
+        Log.api.warning("\(label): HTTP \(response.statusCode) Retry-After=\(retryAfter) body=\(bodySnippet)")
     }
 
     static func startSession(credential: Credential) async {

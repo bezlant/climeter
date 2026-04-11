@@ -30,6 +30,7 @@ struct PopoverView: View {
                                 profile: profile,
                                 usageData: profileManager.allUsageData[profile.id],
                                 errorMessage: profileManager.allErrors[profile.id],
+                                lastSuccessAt: profileManager.allLastSuccess[profile.id],
                                 isCLIActive: profileManager.cliActiveProfileID == profile.id,
                                 showProfileName: profileManager.authenticatedProfiles.count > 1,
                                 currentTime: currentTime,
@@ -149,10 +150,35 @@ struct ProfileCard: View {
     let profile: Profile
     let usageData: UsageData?
     let errorMessage: String?
+    let lastSuccessAt: Date?
     let isCLIActive: Bool
     let showProfileName: Bool
     let currentTime: Date
     let onActivate: () -> Void
+
+    /// 3× base poll interval. Past this, the data on screen likely no longer
+    /// reflects reality (e.g. when the API is rate-limiting us).
+    private static let staleThreshold: TimeInterval = UsageRefreshCoordinator.baseInterval * 3
+
+    private var staleAge: TimeInterval? {
+        guard usageData != nil, let last = lastSuccessAt else { return nil }
+        let age = currentTime.timeIntervalSince(last)
+        return age > Self.staleThreshold ? age : nil
+    }
+
+    private static func formatStaleAge(_ age: TimeInterval) -> String {
+        let minutes = Int(age) / 60
+        if minutes < 60 { return "\(minutes)m ago" }
+        let hours = minutes / 60
+        let remMin = minutes % 60
+        return remMin > 0 ? "\(hours)h \(remMin)m ago" : "\(hours)h ago"
+    }
+
+    private func staleLabel(_ age: TimeInterval) -> some View {
+        Text("stale \(Self.formatStaleAge(age))")
+            .font(.system(size: 9))
+            .foregroundColor(.secondary.opacity(0.7))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -167,11 +193,20 @@ struct ProfileCard: View {
 
                     Spacer()
 
+                    if let age = staleAge {
+                        staleLabel(age)
+                    }
+
                     if !isCLIActive {
                         Button("Use") { onActivate() }
                             .controlSize(.small)
                             .buttonStyle(.bordered)
                     }
+                }
+            } else if let age = staleAge {
+                HStack {
+                    Spacer()
+                    staleLabel(age)
                 }
             }
 

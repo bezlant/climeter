@@ -5,14 +5,18 @@ class UsageRefreshCoordinator: ObservableObject {
     @Published var usageData: UsageData?
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
+    @Published var lastSuccessAt: Date?
 
     let profileID: UUID
     private let credentialProvider: () -> Credential?
     private let onCredentialRefreshed: ((Credential) -> Void)?
     private var timer: Timer?
-    private let baseInterval: TimeInterval = 180.0
-    private var currentInterval: TimeInterval = 180.0
-    private let maxInterval: TimeInterval = 300.0
+    static let baseInterval: TimeInterval = 180.0
+    private var currentInterval: TimeInterval = UsageRefreshCoordinator.baseInterval
+    // IMPORTANT: max backoff must stay high — Anthropic's /api/oauth/usage
+    // endpoint rate-limits aggressively (see anthropics/claude-code#31637)
+    // and stays locked out for 30+ minutes even at 5-minute retry intervals.
+    private let maxInterval: TimeInterval = 900.0
 
     /// Reads the CLI keychain and updates the credential cache
     /// if a newer credential is available.
@@ -43,7 +47,11 @@ class UsageRefreshCoordinator: ObservableObject {
 
     private func scheduleNextPoll() {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: currentInterval, repeats: false) { [weak self] _ in
+        // Add ±10% jitter to avoid two coordinators staying phase-locked
+        // and colliding on every poll cycle.
+        let jitter = Double.random(in: 0.9...1.1)
+        let interval = currentInterval * jitter
+        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
             self?.refresh()
             self?.scheduleNextPoll()
         }
@@ -92,8 +100,9 @@ class UsageRefreshCoordinator: ObservableObject {
                 Log.coordinator.info("[\(self.profileID)] usage fetch OK — 5h: \(fetchedData.fiveHour.utilization)%")
                 self.usageData = fetchedData
                 self.errorMessage = nil
+                self.lastSuccessAt = Date()
                 self.checkAutoStart(credential: credential, usage: fetchedData)
-                self.resetBackoff()
+                self.stepDownBackoff()
             } catch {
                 // Access token rejected server-side (e.g. revoked by a new
                 // /login between the proactive sync and this API call) —
@@ -110,8 +119,9 @@ class UsageRefreshCoordinator: ObservableObject {
                     Log.coordinator.info("[\(self.profileID)] retry after 401 succeeded — 5h: \(fetchedData.fiveHour.utilization)%")
                     self.usageData = fetchedData
                     self.errorMessage = nil
+                    self.lastSuccessAt = Date()
                     self.checkAutoStart(credential: credential, usage: fetchedData)
-                    self.resetBackoff()
+                    self.stepDownBackoff()
                 } catch {
                     Log.coordinator.error("[\(self.profileID)] retry after 401 failed: \(error)")
                     self.handleFetchError(error)
@@ -173,6 +183,7 @@ class UsageRefreshCoordinator: ObservableObject {
 
         if is429 {
             currentInterval = min(currentInterval * 2, maxInterval)
+            Log.coordinator.info("[\(self.profileID)] backoff increased → \(self.currentInterval)s")
             scheduleNextPoll()
         }
 
@@ -181,9 +192,14 @@ class UsageRefreshCoordinator: ObservableObject {
         }
     }
 
-    private func resetBackoff() {
-        guard currentInterval != baseInterval else { return }
-        currentInterval = baseInterval
+    /// Halve the polling interval after a successful fetch instead of jumping
+    /// straight back to baseInterval. The /api/oauth/usage endpoint frequently
+    /// returns 429 again immediately when we drop back to the base interval
+    /// after a single success, so we step down gradually.
+    private func stepDownBackoff() {
+        guard currentInterval > Self.baseInterval else { return }
+        currentInterval = max(currentInterval / 2, Self.baseInterval)
+        Log.coordinator.info("[\(self.profileID)] backoff step-down → \(self.currentInterval)s")
         scheduleNextPoll()
     }
 
