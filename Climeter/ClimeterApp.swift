@@ -5,6 +5,17 @@ struct ClimeterApp: App {
     @StateObject private var profileManager = ProfileManager()
     @StateObject private var updateChecker = UpdateChecker()
 
+    init() {
+        let bundleID = Bundle.main.bundleIdentifier ?? "com.bezlant.climeter"
+        let others = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+            .filter { $0 != .current }
+        if let existing = others.first {
+            NSLog("Another Climeter already running (PID %d) — exiting", existing.processIdentifier)
+            existing.activate()
+            exit(0)
+        }
+    }
+
     var body: some Scene {
         MenuBarExtra {
             PopoverView(profileManager: profileManager, updateChecker: updateChecker)
