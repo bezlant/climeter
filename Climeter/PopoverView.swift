@@ -8,10 +8,16 @@ struct PopoverView: View {
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
+    private var shouldShowCodex: Bool {
+        profileManager.codexEnabled
+            || profileManager.codexUsageData != nil
+            || profileManager.codexErrorMessage != nil
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Content
-            if profileManager.authenticatedProfiles.isEmpty {
+            if profileManager.authenticatedProfiles.isEmpty && !shouldShowCodex {
                 VStack(spacing: 8) {
                     Image(systemName: "person.crop.circle.badge.questionmark")
                         .font(.system(size: 28))
@@ -51,7 +57,7 @@ struct PopoverView: View {
                             .padding(.vertical, 4)
                         }
 
-                        if profileManager.codexEnabled || profileManager.codexUsageData != nil || profileManager.codexErrorMessage != nil {
+                        if shouldShowCodex {
                             ProviderUsageCard(
                                 title: "Codex",
                                 badgeText: "OpenAI",

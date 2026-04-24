@@ -24,6 +24,20 @@ struct SettingsView: View {
                     }
             }
 
+            Section("Claude (Anthropic)") {
+                HStack {
+                    Text("Credentials")
+                    Spacer()
+                    Text("macOS Keychain via Claude Code")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Text("Run /login in Claude Code to connect accounts. Auto-switch applies only to Claude profiles.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
             Section("Codex") {
                 Toggle("Show Codex usage", isOn: $profileManager.codexEnabled)
 
@@ -123,7 +137,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 350, height: 470)
+        .frame(width: 350, height: 530)
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {

@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>cliMeter — Claude Code Rate Limit Monitor</title>
-<meta name="description" content="macOS menu bar app that tracks your Claude Code rate limits in real time. Multi-account, auto-switch, zero config.">
-<meta property="og:title" content="cliMeter — Claude Code Rate Limit Monitor">
-<meta property="og:description" content="macOS menu bar app that tracks your Claude Code rate limits in real time.">
+<title>cliMeter — Codex and Claude Usage Monitor</title>
+<meta name="description" content="macOS menu bar app that tracks OpenAI Codex and Anthropic Claude Code usage limits in real time.">
+<meta property="og:title" content="cliMeter — Codex and Claude Usage Monitor">
+<meta property="og:description" content="macOS menu bar app that tracks OpenAI Codex and Anthropic Claude Code usage limits in real time.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://climeter.bezlant.com">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%C2%B7</text></svg>">
@@ -84,6 +84,7 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
   }
 
   ::selection { background: var(--text-heading); color: var(--bg); }
@@ -232,6 +233,7 @@
     font-family: var(--font-mono);
     font-size: 13px;
     color: var(--text-bright);
+    min-width: 0;
   }
 
   .install-cmd .prompt { color: var(--accent-color); }
@@ -275,7 +277,7 @@
 
   .app-mock {
     display: inline-block;
-    width: 280px;
+    width: 300px;
     border-radius: 12px;
     overflow: hidden;
     background: var(--mock-material);
@@ -335,6 +337,21 @@
     font-size: 9px;
     font-weight: 700;
     color: #22c55e;
+    font-family: var(--font-sans);
+  }
+
+  .mock-provider-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: rgba(37, 99, 235, 0.1);
+  }
+
+  .mock-provider-badge span {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--accent-color);
     font-family: var(--font-sans);
   }
 
@@ -527,13 +544,22 @@
   footer a:hover { color: var(--accent-color); }
 
   @media (max-width: 700px) {
+    .container { padding: 0 18px; }
+    .nav-inner { padding: 14px 18px; }
+    .nav-right { gap: 12px; }
+    .nav-links { gap: 14px; }
     .hero-row { flex-direction: column; gap: 24px; padding: 40px 0 24px; }
-    .hero { text-align: center; }
-    .hero h1 { font-size: 32px; }
-    .hero-sub { margin: 0 auto 24px; }
-    .install-block { margin: 0 auto 10px; }
+    .hero { width: 100%; max-width: 460px; text-align: center; }
+    .hero h1 { max-width: 300px; margin-left: auto; margin-right: auto; font-size: 30px; }
+    .hero-sub { max-width: 330px; margin: 0 auto 24px; }
+    .install-block { width: 100%; max-width: 330px; margin: 0 auto 10px; gap: 12px; }
+    .install-cmd { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .copy-btn { display: none; }
     .install-alt { text-align: center; }
+    .mockup-section { width: 100%; }
+    .app-mock { width: min(300px, calc(100vw - 48px)); }
     .features-grid { grid-template-columns: 1fr; }
+    .nav-links li:nth-child(2) { display: none; }
   }
 </style>
 </head>
@@ -558,11 +584,11 @@
 
   <div class="hero-row">
     <section class="hero">
-      <div class="hero-badge"><span class="dot"></span> v1.0.8</div>
-      <h1>Know your limits<br>before they know you.</h1>
+      <div class="hero-badge"><span class="dot"></span> OpenAI Codex + Anthropic Claude</div>
+      <h1>Know your limits<br>before they stop you.</h1>
       <p class="hero-sub">
-        macOS menu bar app that tracks your Claude Code rate limits in real time.
-        Session and weekly usage at a glance.
+        macOS menu bar app that tracks Claude Code and Codex usage limits in real time.
+        Session and weekly windows at a glance.
       </p>
 
       <div class="install-block">
@@ -584,11 +610,12 @@
       <div class="app-mock">
         <div class="mock-profile-card">
           <div class="mock-profile-header">
-            <span class="mock-profile-name">Personal</span>
+            <span class="mock-profile-name">Claude Personal</span>
             <div class="mock-cli-badge">
               <span class="dot"></span>
               <span>CLI</span>
             </div>
+            <div class="mock-provider-badge"><span>Anthropic</span></div>
           </div>
 
           <div class="mock-usage-row">
@@ -618,6 +645,39 @@
           </div>
         </div>
 
+        <div class="mock-profile-card">
+          <div class="mock-profile-header">
+            <span class="mock-profile-name">Codex</span>
+            <div class="mock-provider-badge"><span>OpenAI</span></div>
+          </div>
+
+          <div class="mock-usage-row">
+            <div class="mock-usage-header">
+              <span class="mock-usage-label">Session</span>
+              <div class="mock-usage-right">
+                <span class="mock-status-icon green">&#10003;</span>
+                <span class="mock-usage-pct green">18%</span>
+                <span class="mock-usage-sep">&middot;</span>
+                <span class="mock-usage-time">4h 12m</span>
+              </div>
+            </div>
+            <div class="mock-bar"><div class="mock-bar-fill bar-green" style="width:18%"></div></div>
+          </div>
+
+          <div class="mock-usage-row">
+            <div class="mock-usage-header">
+              <span class="mock-usage-label">Week</span>
+              <div class="mock-usage-right">
+                <span class="mock-status-icon green">&#10003;</span>
+                <span class="mock-usage-pct green">41%</span>
+                <span class="mock-usage-sep">&middot;</span>
+                <span class="mock-usage-time">5d 3h</span>
+              </div>
+            </div>
+            <div class="mock-bar"><div class="mock-bar-fill bar-green" style="width:41%"></div></div>
+          </div>
+        </div>
+
         <div class="mock-footer">
           <span class="mock-footer-icon">&#9881;</span>
           <div class="mock-footer-right">
@@ -627,7 +687,7 @@
         </div>
       </div>
 
-      <p class="mock-caption">Lives in your menu bar. Color-coded.</p>
+      <p class="mock-caption">Claude and Codex, separated clearly.</p>
     </section>
   </div>
 
@@ -637,20 +697,20 @@
     <div class="section-title">Features</div>
     <div class="features-grid">
       <div class="feature">
-        <h3>Multi-account</h3>
-        <p>Manage multiple Claude subscriptions. Switch between them from the menu bar.</p>
+        <h3>Claude profiles</h3>
+        <p>Manage multiple Claude subscriptions and switch between them from the menu bar.</p>
       </div>
       <div class="feature">
-        <h3>Auto-switch</h3>
-        <p>Hits 95%? Automatically rotates to your next account. No interruptions.</p>
+        <h3>Claude auto-switch</h3>
+        <p>Hits 95%? Automatically rotates to your next Claude account. No interruptions.</p>
       </div>
       <div class="feature">
-        <h3>Zero config</h3>
-        <p>Reads credentials from Claude Code's Keychain. Run /login, done.</p>
+        <h3>Codex limits</h3>
+        <p>Tracks OpenAI Codex session and weekly usage from your Codex CLI login.</p>
       </div>
       <div class="feature">
         <h3>Private</h3>
-        <p>No analytics, no telemetry. Only talks to api.anthropic.com. Open source.</p>
+        <p>No analytics, no telemetry. Only talks to Anthropic and OpenAI usage endpoints.</p>
       </div>
     </div>
   </section>
@@ -659,7 +719,7 @@
 
 <footer>
   <div class="container">
-    Built by <a href="https://bezlant.github.io">Anthony</a> &middot; MIT License &middot; Native Swift, zero dependencies
+    Built by <a href="https://bezlant.github.io">Anthony</a> &middot; MIT License &middot; Native Swift for OpenAI and Anthropic usage
   </div>
 </footer>
 
