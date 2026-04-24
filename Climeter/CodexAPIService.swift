@@ -44,6 +44,26 @@ struct CodexCreditDetails: Decodable, Equatable {
         case unlimited
         case balance
     }
+
+    init(hasCredits: Bool, unlimited: Bool, balance: Double?) {
+        self.hasCredits = hasCredits
+        self.unlimited = unlimited
+        self.balance = balance
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        hasCredits = try container.decode(Bool.self, forKey: .hasCredits)
+        unlimited = try container.decode(Bool.self, forKey: .unlimited)
+
+        if let numericBalance = try? container.decodeIfPresent(Double.self, forKey: .balance) {
+            balance = numericBalance
+        } else if let stringBalance = try container.decodeIfPresent(String.self, forKey: .balance) {
+            balance = Double(stringBalance)
+        } else {
+            balance = nil
+        }
+    }
 }
 
 enum CodexAPIError: Error, Equatable {
@@ -51,6 +71,59 @@ enum CodexAPIError: Error, Equatable {
     case httpError(Int)
     case unauthorized
     case decodingError
+}
+
+enum CodexResponseShape {
+    static func describe(_ data: Data, maxDepth: Int = 4, maxLength: Int = 1_200) -> String {
+        let object: Any
+        do {
+            object = try JSONSerialization.jsonObject(with: data)
+        } catch {
+            return "invalid-json"
+        }
+
+        let description = describeValue(object, depth: 0, maxDepth: maxDepth)
+        guard description.count > maxLength else { return description }
+        return String(description.prefix(maxLength)) + "...[truncated]"
+    }
+
+    private static func describeValue(_ value: Any, depth: Int, maxDepth: Int) -> String {
+        if value is NSNull { return "null" }
+        guard depth < maxDepth else { return typeName(value) }
+
+        if let dictionary = value as? [String: Any] {
+            let fields = dictionary.keys.sorted().map { key in
+                "\(key):\(describeValue(dictionary[key] as Any, depth: depth + 1, maxDepth: maxDepth))"
+            }
+            return "object(\(fields.joined(separator: ",")))"
+        }
+
+        if let array = value as? [Any] {
+            guard let first = array.first else { return "array(count:0)" }
+            return "array(count:\(array.count),element:\(describeValue(first, depth: depth + 1, maxDepth: maxDepth)))"
+        }
+
+        return typeName(value)
+    }
+
+    private static func typeName(_ value: Any) -> String {
+        switch value {
+        case is NSNull:
+            return "null"
+        case is Bool:
+            return "bool"
+        case is NSNumber:
+            return "number"
+        case is String:
+            return "string"
+        case is [String: Any]:
+            return "object"
+        case is [Any]:
+            return "array"
+        default:
+            return String(describing: Swift.type(of: value))
+        }
+    }
 }
 
 enum CodexAPIService {
@@ -91,10 +164,10 @@ enum CodexAPIService {
             do {
                 return try CodexUsageMapper.map(decodeUsageResponse(data))
             } catch CodexAPIError.decodingError {
-                Log.api.warning("codexUsage: decode failed")
+                Log.api.warning("codexUsage: decode failed shape=\(CodexResponseShape.describe(data))")
                 throw CodexAPIError.decodingError
             } catch CodexUsageMapperError.missingWindows {
-                Log.api.warning("codexUsage: missing usage windows")
+                Log.api.warning("codexUsage: missing usage windows shape=\(CodexResponseShape.describe(data))")
                 throw CodexUsageMapperError.missingWindows
             }
         case 401, 403:

@@ -40,6 +40,51 @@ final class CodexAPIServiceTests: XCTestCase {
         XCTAssertEqual(decoded.credits?.balance, 12.5)
     }
 
+    func test_decodeUsageResponseAcceptsStringCreditBalance() throws {
+        let data = Data("""
+        {
+          "plan_type": "pro",
+          "rate_limit": {
+            "primary_window": { "used_percent": 11, "reset_at": 1777100000, "limit_window_seconds": 18000 },
+            "secondary_window": { "used_percent": 22, "reset_at": 1777600000, "limit_window_seconds": 604800 }
+          },
+          "credits": { "has_credits": true, "unlimited": false, "balance": "12.5" }
+        }
+        """.utf8)
+
+        let decoded = try CodexAPIService.decodeUsageResponse(data)
+
+        XCTAssertEqual(decoded.credits?.balance, 12.5)
+    }
+
+    func test_describeJSONShapeRedactsValues() {
+        let data = Data("""
+        {
+          "secret": "do-not-log",
+          "rate_limits": [
+            {
+              "bucket": "weekly",
+              "used_percent": 12,
+              "nested": { "token_like": "sk-sensitive" }
+            }
+          ],
+          "enabled": true
+        }
+        """.utf8)
+
+        let shape = CodexResponseShape.describe(data)
+
+        XCTAssertTrue(shape.contains("enabled:bool"))
+        XCTAssertTrue(shape.contains("rate_limits:array(count:1"))
+        XCTAssertTrue(shape.contains("bucket:string"))
+        XCTAssertTrue(shape.contains("used_percent:number"))
+        XCTAssertTrue(shape.contains("nested:object"))
+        XCTAssertTrue(shape.contains("token_like:string"))
+        XCTAssertFalse(shape.contains("do-not-log"))
+        XCTAssertFalse(shape.contains("weekly"))
+        XCTAssertFalse(shape.contains("sk-sensitive"))
+    }
+
     func test_refreshRequestBody() throws {
         let request = try CodexTokenRefresher.makeRefreshRequest(refreshToken: "refresh-token")
 
