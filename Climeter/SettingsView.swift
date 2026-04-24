@@ -24,6 +24,34 @@ struct SettingsView: View {
                     }
             }
 
+            Section("Codex") {
+                Toggle("Show Codex usage", isOn: $profileManager.codexEnabled)
+
+                HStack {
+                    Text("Credentials")
+                    Spacer()
+                    Text(CodexCredentialStore.authFileURL().path)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                if let error = profileManager.codexErrorMessage {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else if profileManager.codexUsageData != nil {
+                    Text("Connected")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("Run `codex login` if usage does not appear.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
             Section("Auto-Switch") {
                 Toggle("Switch accounts automatically", isOn: $profileManager.autoSwitchEnabled)
 
@@ -95,7 +123,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 350, height: 400)
+        .frame(width: 350, height: 470)
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {

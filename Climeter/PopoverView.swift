@@ -50,6 +50,28 @@ struct PopoverView: View {
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
                         }
+
+                        if profileManager.codexEnabled || profileManager.codexUsageData != nil || profileManager.codexErrorMessage != nil {
+                            ProviderUsageCard(
+                                title: "Codex",
+                                badgeText: "OpenAI",
+                                usageData: profileManager.codexUsageData,
+                                errorMessage: profileManager.codexErrorMessage,
+                                lastSuccessAt: profileManager.codexLastSuccessAt,
+                                currentTime: currentTime
+                            )
+                            .padding(10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.4))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 0.5)
+                            )
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                        }
                     }
                     .padding(.top, 2)
                 }
@@ -174,6 +196,10 @@ struct ProfileCard: View {
         return remMin > 0 ? "\(hours)h \(remMin)m ago" : "\(hours)h ago"
     }
 
+    static func formatStaleAgeForProvider(_ age: TimeInterval) -> String {
+        formatStaleAge(age)
+    }
+
     private func staleLabel(_ age: TimeInterval) -> some View {
         Text("stale \(Self.formatStaleAge(age))")
             .font(.system(size: 9))
@@ -227,6 +253,71 @@ struct ProfileCard: View {
                         .font(.system(size: 10))
                         .foregroundColor(.orange)
                     Text(error)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+            } else {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Loading...")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Provider Usage Card
+
+struct ProviderUsageCard: View {
+    let title: String
+    let badgeText: String?
+    let usageData: UsageData?
+    let errorMessage: String?
+    let lastSuccessAt: Date?
+    let currentTime: Date
+
+    private static let staleThreshold: TimeInterval = UsageRefreshCoordinator.baseInterval * 3
+
+    private var staleAge: TimeInterval? {
+        guard usageData != nil, let lastSuccessAt else { return nil }
+        let age = currentTime.timeIntervalSince(lastSuccessAt)
+        return age > Self.staleThreshold ? age : nil
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                if let badgeText {
+                    Text(badgeText)
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(.blue.opacity(0.12)))
+                }
+                Spacer()
+                if let staleAge {
+                    Text("stale \(ProfileCard.formatStaleAgeForProvider(staleAge))")
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary.opacity(0.7))
+                }
+            }
+
+            if let usageData {
+                UsageRow(label: "Session", window: usageData.fiveHour, currentTime: currentTime)
+                UsageRow(label: "Week", window: usageData.sevenDay, currentTime: currentTime)
+            } else if let errorMessage {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.orange)
+                    Text(errorMessage)
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
