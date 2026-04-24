@@ -25,7 +25,18 @@
 		1A000041000000000000041 /* MenuBarIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A000042000000000000042 /* MenuBarIcon.swift */; };
 		1A000043000000000000043 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A000044000000000000044 /* Log.swift */; };
 		1A000045000000000000045 /* PowerStateMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A000046000000000000046 /* PowerStateMonitor.swift */; };
+		1A100001000000000000001 /* ClimeterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A100002000000000000002 /* ClimeterTests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		1A100003000000000000003 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1A00000D00000000000000D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1A000009000000000000009;
+			remoteInfo = Climeter;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		1A000002000000000000002 /* ClimeterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClimeterApp.swift; sourceTree = "<group>"; };
@@ -48,10 +59,19 @@
 		1A000039000000000000039 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1A000044000000000000044 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		1A000046000000000000046 /* PowerStateMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerStateMonitor.swift; sourceTree = "<group>"; };
+		1A100002000000000000002 /* ClimeterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClimeterTests.swift; sourceTree = "<group>"; };
+		1A100004000000000000004 /* ClimeterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClimeterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		1A000005000000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1A100005000000000000005 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -65,6 +85,7 @@
 			isa = PBXGroup;
 			children = (
 				1A000007000000000000007 /* Climeter */,
+				1A100006000000000000006 /* ClimeterTests */,
 				1A000008000000000000008 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -99,8 +120,17 @@
 			isa = PBXGroup;
 			children = (
 				1A000003000000000000003 /* Climeter.app */,
+				1A100004000000000000004 /* ClimeterTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		1A100006000000000000006 /* ClimeterTests */ = {
+			isa = PBXGroup;
+			children = (
+				1A100002000000000000002 /* ClimeterTests.swift */,
+			);
+			path = ClimeterTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -123,6 +153,23 @@
 			productReference = 1A000003000000000000003 /* Climeter.app */;
 			productType = "com.apple.product-type.application";
 		};
+		1A100007000000000000007 /* ClimeterTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1A100008000000000000008 /* Build configuration list for PBXNativeTarget "ClimeterTests" */;
+			buildPhases = (
+				1A100009000000000000009 /* Sources */,
+				1A100005000000000000005 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1A10000A00000000000000A /* PBXTargetDependency */,
+			);
+			name = ClimeterTests;
+			productName = ClimeterTests;
+			productReference = 1A100004000000000000004 /* ClimeterTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -135,6 +182,10 @@
 				TargetAttributes = {
 					1A000009000000000000009 = {
 						CreatedOnToolsVersion = 15.2;
+					};
+					1A100007000000000000007 = {
+						CreatedOnToolsVersion = 15.2;
+						TestTargetID = 1A000009000000000000009;
 					};
 				};
 			};
@@ -152,6 +203,7 @@
 			projectRoot = "";
 			targets = (
 				1A000009000000000000009 /* Climeter */,
+				1A100007000000000000007 /* ClimeterTests */,
 			);
 		};
 /* End PBXProject section */
@@ -192,7 +244,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		1A100009000000000000009 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1A100001000000000000001 /* ClimeterTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		1A10000A00000000000000A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1A000009000000000000009 /* Climeter */;
+			targetProxy = 1A100003000000000000003 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		1A00000F00000000000000F /* Debug */ = {
@@ -363,6 +431,46 @@
 			};
 			name = Release;
 		};
+		1A10000B00000000000000B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+					"$(BUILT_PRODUCTS_DIR)/Climeter.app/Contents/MacOS",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				OTHER_LDFLAGS = "$(BUILT_PRODUCTS_DIR)/Climeter.app/Contents/MacOS/Climeter.debug.dylib";
+				PRODUCT_BUNDLE_IDENTIFIER = com.bezlant.climeter.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		1A10000C00000000000000C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+					"$(BUILT_PRODUCTS_DIR)/Climeter.app/Contents/MacOS",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				OTHER_LDFLAGS = "$(BUILT_PRODUCTS_DIR)/Climeter.app/Contents/MacOS/Climeter.debug.dylib";
+				PRODUCT_BUNDLE_IDENTIFIER = com.bezlant.climeter.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -380,6 +488,15 @@
 			buildConfigurations = (
 				1A00000F00000000000000F /* Debug */,
 				1A000010000000000000010 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1A100008000000000000008 /* Build configuration list for PBXNativeTarget "ClimeterTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1A10000B00000000000000B /* Debug */,
+				1A10000C00000000000000C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
