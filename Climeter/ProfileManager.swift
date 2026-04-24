@@ -9,6 +9,22 @@ class ProfileManager: ObservableObject {
     @Published var allLastSuccess: [UUID: Date] = [:]
     @Published var cliActiveProfileID: UUID?
     @Published private(set) var authenticatedProfileIDs: Set<UUID> = []
+    @Published var codexUsageData: UsageData?
+    @Published var codexErrorMessage: String?
+    @Published var codexLastSuccessAt: Date?
+    @Published var codexEnabled: Bool = true {
+        didSet {
+            ProfileStore.saveCodexEnabled(codexEnabled)
+            if codexEnabled {
+                codexCoordinator.startPolling()
+            } else {
+                codexCoordinator.stopPolling()
+                codexUsageData = nil
+                codexErrorMessage = nil
+                codexLastSuccessAt = nil
+            }
+        }
+    }
 
     @Published var autoSwitchEnabled: Bool = false {
         didSet { ProfileStore.saveAutoSwitchEnabled(autoSwitchEnabled) }
@@ -19,6 +35,8 @@ class ProfileManager: ObservableObject {
 
     private var coordinators: [UUID: UsageRefreshCoordinator] = [:]
     private var cancellables: [UUID: [AnyCancellable]] = [:]
+    private let codexCoordinator = CodexUsageRefreshCoordinator()
+    private var codexCancellables: [AnyCancellable] = []
     private var cachedCredentials: [UUID: Credential] = [:]
     private var lastAutoSwitchDate: Date?
     private let powerMonitor = PowerStateMonitor()
@@ -50,8 +68,13 @@ class ProfileManager: ObservableObject {
         loadCLIActiveProfileID()
         autoSwitchEnabled = ProfileStore.loadAutoSwitchEnabled()
         autoSwitchThreshold = ProfileStore.loadAutoSwitchThreshold()
+        codexEnabled = ProfileStore.loadCodexEnabled()
         Log.profiles.info("init: \(self.profiles.count) profiles, \(self.authenticatedProfileIDs.count) authenticated, cliActive=\(self.cliActiveProfileID?.uuidString ?? "none")")
         setupAllCoordinators()
+        setupCodexCoordinator()
+        if codexEnabled {
+            codexCoordinator.startPolling()
+        }
         backfillAccountUUIDs()
         startCLIMonitoring()
         setupPowerMonitor()
@@ -256,6 +279,7 @@ class ProfileManager: ObservableObject {
             for coordinator in self.coordinators.values {
                 coordinator.stopPolling()
             }
+            self.codexCoordinator.stopPolling()
         }
 
         powerMonitor.onWake = { [weak self] in
@@ -293,6 +317,10 @@ class ProfileManager: ObservableObject {
             }
         }
 
+        if codexEnabled {
+            codexCoordinator.startPolling()
+        }
+
         // Re-check CLI keychain for any credential changes during sleep
         detectCLIAccountChange()
     }
@@ -303,6 +331,20 @@ class ProfileManager: ObservableObject {
         for profile in profiles where authenticatedProfileIDs.contains(profile.id) {
             setupCoordinator(for: profile.id)
         }
+    }
+
+    private func setupCodexCoordinator() {
+        codexCancellables = [
+            codexCoordinator.$usageData
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] data in self?.codexUsageData = data },
+            codexCoordinator.$errorMessage
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] message in self?.codexErrorMessage = message },
+            codexCoordinator.$lastSuccessAt
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] date in self?.codexLastSuccessAt = date }
+        ]
     }
 
     private func setupCoordinator(for profileID: UUID) {
@@ -392,6 +434,9 @@ class ProfileManager: ObservableObject {
         for coordinator in coordinators.values {
             coordinator.refresh()
         }
+        if codexEnabled {
+            codexCoordinator.refresh()
+        }
     }
 
     func activateForCLI(profileID: UUID) {
@@ -448,5 +493,6 @@ class ProfileManager: ObservableObject {
         for coordinator in coordinators.values {
             coordinator.stopPolling()
         }
+        codexCoordinator.stopPolling()
     }
 }

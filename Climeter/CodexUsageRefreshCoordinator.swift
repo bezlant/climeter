@@ -5,15 +5,14 @@ enum CodexUsageRefreshError: Error, Equatable {
     case apiKeyMode
 }
 
-@MainActor
 final class CodexUsageRefreshCoordinator: ObservableObject {
     @Published var usageData: UsageData?
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     @Published var lastSuccessAt: Date?
 
-    nonisolated static let baseInterval: TimeInterval = 180
-    nonisolated static let staleThreshold: TimeInterval = baseInterval * 3
+    static let baseInterval: TimeInterval = 180
+    static let staleThreshold: TimeInterval = baseInterval * 3
 
     private var timer: Timer?
     private var currentInterval: TimeInterval = baseInterval
@@ -86,7 +85,7 @@ final class CodexUsageRefreshCoordinator: ObservableObject {
         scheduleNextPoll()
     }
 
-    nonisolated static func describeError(_ error: Error) -> String {
+    static func describeError(_ error: Error) -> String {
         if case CodexCredentialStoreError.notFound = error {
             return "Run `codex login`"
         }

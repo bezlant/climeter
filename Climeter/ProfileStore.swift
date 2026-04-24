@@ -6,6 +6,7 @@ enum ProfileStore {
     private static let cliActiveProfileIDKey = "cliActiveProfileID"
     private static let autoSwitchEnabledKey = "autoSwitchEnabled"
     private static let autoSwitchThresholdKey = "autoSwitchThreshold"
+    private static let codexEnabledKey = "codexEnabled"
     private static let defaults = UserDefaults.standard
 
     static func loadProfiles() -> [Profile] {
@@ -75,6 +76,16 @@ enum ProfileStore {
 
     static func saveAutoSwitchThreshold(_ threshold: Double) {
         defaults.set(threshold, forKey: autoSwitchThresholdKey)
+    }
+
+    // MARK: - Codex Settings
+
+    static func loadCodexEnabled() -> Bool {
+        defaults.object(forKey: codexEnabledKey) as? Bool ?? true
+    }
+
+    static func saveCodexEnabled(_ enabled: Bool) {
+        defaults.set(enabled, forKey: codexEnabledKey)
     }
 
     // Raw string credential operations (Keychain stores raw JSON)
