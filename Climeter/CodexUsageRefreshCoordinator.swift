@@ -53,6 +53,7 @@ final class CodexUsageRefreshCoordinator: ObservableObject {
                 self.lastSuccessAt = Date()
                 self.stepDownBackoff()
             } catch {
+                Log.coordinator.error("Codex usage refresh failed: \(Self.describeError(error))")
                 self.handleError(error)
             }
         }
@@ -92,11 +93,26 @@ final class CodexUsageRefreshCoordinator: ObservableObject {
         if case CodexUsageRefreshError.apiKeyMode = error {
             return "Codex API key mode: plan limits unavailable"
         }
+        if case CodexCredentialError.invalidJSON = error {
+            return "Codex auth file unreadable. Run `codex login`"
+        }
+        if case CodexCredentialError.missingTokens = error {
+            return "Run `codex login`"
+        }
         if case CodexAPIError.unauthorized = error {
             return "Codex session expired. Run `codex login`"
         }
         if case CodexAPIError.httpError(429) = error {
-            return "Rate limited - retrying soon"
+            return "Codex rate limited - retrying soon"
+        }
+        if case CodexAPIError.httpError(let code) = error {
+            return "Codex HTTP \(code)"
+        }
+        if case CodexAPIError.invalidResponse = error {
+            return "Codex usage response invalid"
+        }
+        if case CodexAPIError.decodingError = error {
+            return "Codex usage format changed"
         }
         if case CodexUsageMapperError.missingWindows = error {
             return "Codex usage format changed"

@@ -78,14 +78,25 @@ enum CodexAPIService {
     }
 
     static func fetchUsage(credential: CodexCredential) async throws -> UsageData {
+        Log.api.info("codexUsage: GET /backend-api/wham/usage")
         let request = makeUsageRequest(accessToken: credential.accessToken, accountID: credential.accountID)
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else {
+            Log.api.warning("codexUsage: invalid response")
             throw CodexAPIError.invalidResponse
         }
+        Log.api.info("codexUsage: HTTP \(http.statusCode)")
         switch http.statusCode {
         case 200...299:
-            return try CodexUsageMapper.map(decodeUsageResponse(data))
+            do {
+                return try CodexUsageMapper.map(decodeUsageResponse(data))
+            } catch CodexAPIError.decodingError {
+                Log.api.warning("codexUsage: decode failed")
+                throw CodexAPIError.decodingError
+            } catch CodexUsageMapperError.missingWindows {
+                Log.api.warning("codexUsage: missing usage windows")
+                throw CodexUsageMapperError.missingWindows
+            }
         case 401, 403:
             throw CodexAPIError.unauthorized
         default:
@@ -114,14 +125,20 @@ enum CodexTokenRefresher {
 
     static func refresh(_ credential: CodexCredential) async throws -> CodexCredential {
         guard !credential.refreshToken.isEmpty else { return credential }
+        Log.api.info("codexRefresh: POST /oauth/token")
         let request = try makeRefreshRequest(refreshToken: credential.refreshToken)
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw CodexAPIError.invalidResponse }
+        guard let http = response as? HTTPURLResponse else {
+            Log.api.warning("codexRefresh: invalid response")
+            throw CodexAPIError.invalidResponse
+        }
+        Log.api.info("codexRefresh: HTTP \(http.statusCode)")
         guard http.statusCode == 200 else {
             if http.statusCode == 401 { throw CodexAPIError.unauthorized }
             throw CodexAPIError.httpError(http.statusCode)
         }
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            Log.api.warning("codexRefresh: invalid JSON")
             throw CodexAPIError.invalidResponse
         }
         return CodexCredential(
