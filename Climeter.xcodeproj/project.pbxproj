@@ -32,6 +32,7 @@
 		1A100001000000000000001 /* ClimeterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A100002000000000000002 /* ClimeterTests.swift */; };
 		1A10000D00000000000000D /* CodexCredentialTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A10000E00000000000000E /* CodexCredentialTests.swift */; };
 		1A10000F00000000000000F /* CodexUsageMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A100010000000000000010 /* CodexUsageMapperTests.swift */; };
+		1A100011000000000000011 /* CodexAPIServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A100012000000000000012 /* CodexAPIServiceTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -73,6 +74,7 @@
 		1A100004000000000000004 /* ClimeterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClimeterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A10000E00000000000000E /* CodexCredentialTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexCredentialTests.swift; sourceTree = "<group>"; };
 		1A100010000000000000010 /* CodexUsageMapperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexUsageMapperTests.swift; sourceTree = "<group>"; };
+		1A100012000000000000012 /* CodexAPIServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexAPIServiceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -147,6 +149,7 @@
 				1A100002000000000000002 /* ClimeterTests.swift */,
 				1A10000E00000000000000E /* CodexCredentialTests.swift */,
 				1A100010000000000000010 /* CodexUsageMapperTests.swift */,
+				1A100012000000000000012 /* CodexAPIServiceTests.swift */,
 			);
 			path = ClimeterTests;
 			sourceTree = "<group>";
@@ -273,6 +276,7 @@
 				1A100001000000000000001 /* ClimeterTests.swift in Sources */,
 				1A10000D00000000000000D /* CodexCredentialTests.swift in Sources */,
 				1A10000F00000000000000F /* CodexUsageMapperTests.swift in Sources */,
+				1A100011000000000000011 /* CodexAPIServiceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
