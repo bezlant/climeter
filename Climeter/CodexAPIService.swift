@@ -111,4 +111,26 @@ enum CodexTokenRefresher {
         ])
         return request
     }
+
+    static func refresh(_ credential: CodexCredential) async throws -> CodexCredential {
+        guard !credential.refreshToken.isEmpty else { return credential }
+        let request = try makeRefreshRequest(refreshToken: credential.refreshToken)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw CodexAPIError.invalidResponse }
+        guard http.statusCode == 200 else {
+            if http.statusCode == 401 { throw CodexAPIError.unauthorized }
+            throw CodexAPIError.httpError(http.statusCode)
+        }
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw CodexAPIError.invalidResponse
+        }
+        return CodexCredential(
+            accessToken: json["access_token"] as? String ?? credential.accessToken,
+            refreshToken: json["refresh_token"] as? String ?? credential.refreshToken,
+            idToken: json["id_token"] as? String ?? credential.idToken,
+            accountID: credential.accountID,
+            lastRefresh: Date(),
+            authMode: .chatGPT
+        )
+    }
 }

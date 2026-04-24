@@ -24,4 +24,24 @@ enum CodexCredentialStore {
         }
         return try CodexCredential.parse(data: Data(contentsOf: url))
     }
+
+    static func save(_ credential: CodexCredential, env: [String: String] = ProcessInfo.processInfo.environment) throws {
+        let url = authFileURL(env: env)
+        var json: [String: Any] = [:]
+        if let data = try? Data(contentsOf: url),
+           let existing = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            json = existing
+        }
+
+        var tokens = (json["tokens"] as? [String: Any]) ?? [:]
+        tokens["access_token"] = credential.accessToken
+        tokens["refresh_token"] = credential.refreshToken
+        if let idToken = credential.idToken { tokens["id_token"] = idToken }
+        if let accountID = credential.accountID { tokens["account_id"] = accountID }
+        json["tokens"] = tokens
+        json["last_refresh"] = ISO8601DateFormatter().string(from: Date())
+
+        let data = try JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys])
+        try data.write(to: url, options: .atomic)
+    }
 }
