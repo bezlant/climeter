@@ -55,7 +55,7 @@ jobs:
 
             url "https://github.com/bezlant/cliMeter/releases/download/v#{version}/Climeter.zip"
             name "cliMeter"
-            desc "macOS menu bar app for tracking Claude Code API usage"
+            desc "macOS menu bar app for tracking Claude Code and Codex usage"
             homepage "https://github.com/bezlant/cliMeter"
 
             depends_on macos: ">= :sonoma"
