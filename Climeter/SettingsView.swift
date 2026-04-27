@@ -90,6 +90,14 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Peak Hours") {
+                Toggle("Show peak hours indicator", isOn: $profileManager.peakHoursEnabled)
+
+                Text("Weekdays \(PeakHoursService.localTimeRangeString()). Session limits are consumed faster during peak hours.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
             Section("Auto-Switch") {
                 Toggle("Switch accounts automatically", isOn: $profileManager.autoSwitchEnabled)
 
@@ -161,7 +169,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 350, height: 620)
+        .frame(width: 350, height: 700)
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {

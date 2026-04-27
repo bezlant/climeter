@@ -54,6 +54,9 @@ class ProfileManager: ObservableObject {
         }
     }
 
+    @Published var peakHoursEnabled: Bool = true {
+        didSet { ProfileStore.savePeakHoursEnabled(peakHoursEnabled) }
+    }
     @Published var autoSwitchEnabled: Bool = false {
         didSet { ProfileStore.saveAutoSwitchEnabled(autoSwitchEnabled) }
     }
@@ -97,6 +100,7 @@ class ProfileManager: ObservableObject {
         loadProfiles()
         refreshAuthenticatedIDs()
         loadCLIActiveProfileID()
+        peakHoursEnabled = ProfileStore.loadPeakHoursEnabled()
         autoSwitchEnabled = ProfileStore.loadAutoSwitchEnabled()
         autoSwitchThreshold = ProfileStore.loadAutoSwitchThreshold()
         codexEnabled = ProfileStore.loadCodexEnabled()

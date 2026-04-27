@@ -22,7 +22,8 @@ struct ClimeterApp: App {
         } label: {
             if let usageData = profileManager.cliActiveUsageData {
                 let utilization = usageData.fiveHour.utilization
-                Image(nsImage: MenuBarIcon.progressBar(utilization: utilization))
+                let isPeak = profileManager.peakHoursEnabled && PeakHoursService.isPeakNow()
+                Image(nsImage: MenuBarIcon.progressBar(utilization: utilization, isPeak: isPeak))
             } else {
                 Text("—")
             }

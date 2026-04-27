@@ -45,7 +45,24 @@ struct PopoverView: View {
             } else {
                 ScrollView {
                     VStack(spacing: 0) {
+                        if profileManager.peakHoursEnabled {
+                            PeakHoursBanner(currentTime: currentTime)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                        }
+
                         if shouldShowClaude {
+                            if profileManager.authenticatedProfiles.count > 1 {
+                                HStack(spacing: 4) {
+                                    Text("Claude")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(.secondary)
+                                    ProviderBadge(text: "Anthropic", color: .blue)
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.top, 4)
+                            }
+
                             ForEach(Array(profileManager.authenticatedProfiles.enumerated()), id: \.element.id) { index, profile in
                                 ProfileCard(
                                     profile: profile,
@@ -230,31 +247,30 @@ struct ProfileCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if showProfileName {
-                HStack {
+            HStack {
+                if showProfileName {
                     Text(profile.name)
                         .font(.system(size: 12, weight: .semibold))
-
-                    if isCLIActive {
-                        CLIBadge()
-                    }
-
-                    Spacer()
-
-                    if let age = staleAge {
-                        staleLabel(age)
-                    }
-
-                    if !isCLIActive {
-                        Button("Use") { onActivate() }
-                            .controlSize(.small)
-                            .buttonStyle(.bordered)
-                    }
+                } else {
+                    Text("Claude")
+                        .font(.system(size: 12, weight: .semibold))
+                    ProviderBadge(text: "Anthropic", color: .blue)
                 }
-            } else if let age = staleAge {
-                HStack {
-                    Spacer()
+
+                if isCLIActive && showProfileName {
+                    CLIBadge()
+                }
+
+                Spacer()
+
+                if let age = staleAge {
                     staleLabel(age)
+                }
+
+                if showProfileName && !isCLIActive {
+                    Button("Use") { onActivate() }
+                        .controlSize(.small)
+                        .buttonStyle(.bordered)
                 }
             }
 
@@ -316,12 +332,7 @@ struct ProviderUsageCard: View {
                 Text(title)
                     .font(.system(size: 12, weight: .semibold))
                 if let badgeText {
-                    Text(badgeText)
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(.blue.opacity(0.12)))
+                    ProviderBadge(text: badgeText, color: .blue)
                 }
                 Spacer()
                 if let staleAge {
@@ -354,6 +365,101 @@ struct ProviderUsageCard: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Peak Hours Banner
+
+struct PeakHoursBanner: View {
+    let currentTime: Date
+
+    private var isPeak: Bool {
+        PeakHoursService.isPeakNow(at: currentTime)
+    }
+
+    private var countdown: String? {
+        guard let endTime = PeakHoursService.peakEndTime(at: currentTime) else { return nil }
+        let remaining = endTime.timeIntervalSince(currentTime)
+        guard remaining > 0 else { return nil }
+        let hours = Int(remaining) / 3600
+        let minutes = (Int(remaining) % 3600) / 60
+        if hours > 0 { return "\(hours)h \(minutes)m" }
+        return "\(minutes)m"
+    }
+
+    private var nextPeakCountdown: String? {
+        guard let nextStart = PeakHoursService.nextPeakStartTime(at: currentTime) else { return nil }
+        let remaining = nextStart.timeIntervalSince(currentTime)
+        guard remaining > 0 else { return nil }
+        let hours = Int(remaining) / 3600
+        let minutes = (Int(remaining) % 3600) / 60
+        let days = hours / 24
+        let remHours = hours % 24
+        if days > 0 { return "\(days)d \(remHours)h" }
+        if hours > 0 { return "\(hours)h \(minutes)m" }
+        return "\(minutes)m"
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if isPeak {
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 10))
+                    .foregroundColor(.orange)
+                Text("Peak hours")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.orange)
+                Spacer()
+                if let countdown {
+                    Text("ends in \(countdown)")
+                        .font(.system(size: 10))
+                        .foregroundColor(.orange.opacity(0.8))
+                }
+            } else {
+                Image(systemName: "leaf.fill")
+                    .font(.system(size: 10))
+                    .foregroundColor(.green)
+                Text("Off-peak")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.green)
+                Spacer()
+                if let nextPeakCountdown {
+                    Text("peak in \(nextPeakCountdown)")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary.opacity(0.7))
+                }
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isPeak ? Color.orange.opacity(0.08) : Color.green.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(
+                    isPeak ? Color.orange.opacity(0.2) : Color.green.opacity(0.12),
+                    lineWidth: 0.5
+                )
+        )
+        .help("Weekdays \(PeakHoursService.localTimeRangeString()) — session limits consumed faster during peak")
+    }
+}
+
+// MARK: - Provider Badge
+
+struct ProviderBadge: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 9, weight: .bold))
+            .foregroundColor(color)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(color.opacity(0.12)))
     }
 }
 

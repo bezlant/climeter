@@ -1,16 +1,31 @@
 import AppKit
 
 enum MenuBarIcon {
-    static func progressBar(utilization: Double, width: CGFloat = 28, height: CGFloat = 12) -> NSImage {
+    static func progressBar(utilization: Double, isPeak: Bool = false, width: CGFloat = 28, height: CGFloat = 12) -> NSImage {
+        let peakDotSize: CGFloat = 4
+        let peakGap: CGFloat = 3
+        let totalWidth = isPeak ? width + peakGap + peakDotSize : width
         let barHeight: CGFloat = 6
         let radius: CGFloat = 3
         let fraction = min(max(utilization / 100.0, 0), 1)
 
-        let image = NSImage(size: NSSize(width: width, height: height), flipped: false) { rect in
+        let image = NSImage(size: NSSize(width: totalWidth, height: height), flipped: false) { rect in
+            if isPeak {
+                let dotRect = NSRect(
+                    x: rect.width - peakDotSize,
+                    y: (rect.height - peakDotSize) / 2,
+                    width: peakDotSize,
+                    height: peakDotSize
+                )
+                let dotPath = NSBezierPath(ovalIn: dotRect)
+                NSColor.systemOrange.setFill()
+                dotPath.fill()
+            }
+
             let barRect = NSRect(
                 x: 0,
                 y: (rect.height - barHeight) / 2,
-                width: rect.width,
+                width: width,
                 height: barHeight
             )
 
