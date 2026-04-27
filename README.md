@@ -24,6 +24,8 @@ Claude Code and Codex do not keep their usage limits visible while you work. You
 - **Claude auto-switch** — when one Claude account hits 95% utilization, automatically activates the next
 - **Codex usage tracking** — shows OpenAI Codex session and weekly plan-limit windows
 - **CLI sync** — picks up Claude Code `/login` credentials and Codex CLI login state
+- **Per-provider toggles** — show or hide Claude and Codex independently
+- **File-based credential storage** — optional alternative to macOS Keychain, reduces security prompts
 - **Auto-update check** — notifies you when a new version is available
 
 ## Install
@@ -68,7 +70,7 @@ That's it. No API keys to paste, no config files to edit.
 
 ## Security
 
-- Claude credentials are stored in macOS Keychain by Claude Code
+- Claude credentials are stored in macOS Keychain by default, with optional file-based storage
 - Codex credentials are read from the Codex CLI auth file managed by `codex login`
 - OAuth tokens with automatic refresh
 - No data leaves your machine except provider API calls to Anthropic and OpenAI/ChatGPT usage endpoints
@@ -77,7 +79,9 @@ That's it. No API keys to paste, no config files to edit.
 
 ## How it works
 
-cliMeter reads the OAuth credentials that Claude Code stores in the system Keychain for Claude usage. For Codex usage, it reads the current Codex CLI OAuth login from `$CODEX_HOME/auth.json` or `~/.codex/auth.json`. It polls provider usage endpoints every 3 minutes and displays the result. When tokens expire, it refreshes them silently.
+cliMeter reads the OAuth credentials that Claude Code stores in the system Keychain (or its credentials file) for Claude usage. For Codex usage, it reads the current Codex CLI OAuth login from `$CODEX_HOME/auth.json` or `~/.codex/auth.json`. It polls provider usage endpoints every 3 minutes and displays the result. When tokens expire, it refreshes them silently.
+
+You can toggle each provider on or off in Settings. File-based credential storage can be enabled to avoid Keychain security prompts — credentials are stored in `~/Library/Application Support/Climeter/credentials.json` instead.
 
 Claude auto-switch applies only to Claude profiles. Codex usage is displayed separately and does not participate in account switching.
 
