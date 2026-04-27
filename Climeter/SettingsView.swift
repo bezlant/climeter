@@ -24,11 +24,31 @@ struct SettingsView: View {
                     }
             }
 
+            Section("Credential Storage") {
+                Toggle("Use file-based storage", isOn: $profileManager.fileBasedStorage)
+
+                if profileManager.fileBasedStorage {
+                    HStack {
+                        Text("Location")
+                        Spacer()
+                        Text(FileCredentialStore.credentialsURL().path)
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+
+                Text("Stores credentials in local files instead of macOS Keychain. Reduces security prompts.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
             Section("Claude (Anthropic)") {
                 HStack {
                     Text("Credentials")
                     Spacer()
-                    Text("macOS Keychain via Claude Code")
+                    Text(profileManager.fileBasedStorage ? "File-based via Claude Code" : "macOS Keychain via Claude Code")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -137,7 +157,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 350, height: 530)
+        .frame(width: 350, height: 590)
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {
