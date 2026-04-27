@@ -30,11 +30,13 @@
 		1A200005000000000000005 /* CodexAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A200006000000000000006 /* CodexAPIService.swift */; };
 		1A200007000000000000007 /* CodexUsageMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A200008000000000000008 /* CodexUsageMapper.swift */; };
 		1A200009000000000000009 /* CodexUsageRefreshCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A200010000000000000010 /* CodexUsageRefreshCoordinator.swift */; };
+		1A300001000000000000001 /* FileCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A300002000000000000002 /* FileCredentialStore.swift */; };
 		1A100001000000000000001 /* ClimeterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A100002000000000000002 /* ClimeterTests.swift */; };
 		1A10000D00000000000000D /* CodexCredentialTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A10000E00000000000000E /* CodexCredentialTests.swift */; };
 		1A10000F00000000000000F /* CodexUsageMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A100010000000000000010 /* CodexUsageMapperTests.swift */; };
 		1A100011000000000000011 /* CodexAPIServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A100012000000000000012 /* CodexAPIServiceTests.swift */; };
 		1A100013000000000000013 /* CodexUsageRefreshCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A100014000000000000014 /* CodexUsageRefreshCoordinatorTests.swift */; };
+		1A300003000000000000003 /* FileCredentialStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A300004000000000000004 /* FileCredentialStoreTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -73,12 +75,14 @@
 		1A200006000000000000006 /* CodexAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexAPIService.swift; sourceTree = "<group>"; };
 		1A200008000000000000008 /* CodexUsageMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexUsageMapper.swift; sourceTree = "<group>"; };
 		1A200010000000000000010 /* CodexUsageRefreshCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexUsageRefreshCoordinator.swift; sourceTree = "<group>"; };
+		1A300002000000000000002 /* FileCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCredentialStore.swift; sourceTree = "<group>"; };
 		1A100002000000000000002 /* ClimeterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClimeterTests.swift; sourceTree = "<group>"; };
 		1A100004000000000000004 /* ClimeterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClimeterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A10000E00000000000000E /* CodexCredentialTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexCredentialTests.swift; sourceTree = "<group>"; };
 		1A100010000000000000010 /* CodexUsageMapperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexUsageMapperTests.swift; sourceTree = "<group>"; };
 		1A100012000000000000012 /* CodexAPIServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexAPIServiceTests.swift; sourceTree = "<group>"; };
 		1A100014000000000000014 /* CodexUsageRefreshCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexUsageRefreshCoordinatorTests.swift; sourceTree = "<group>"; };
+		1A300004000000000000004 /* FileCredentialStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCredentialStoreTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -116,6 +120,7 @@
 				1A000034000000000000034 /* SettingsView.swift */,
 				1A000016000000000000016 /* LaunchAtLoginService.swift */,
 				1A000018000000000000018 /* KeychainService.swift */,
+				1A300002000000000000002 /* FileCredentialStore.swift */,
 				1A000024000000000000024 /* ClaudeCodeSyncService.swift */,
 				1A000030000000000000030 /* ClaudeAPIService.swift */,
 				1A200002000000000000002 /* CodexCredential.swift */,
@@ -156,6 +161,7 @@
 				1A100010000000000000010 /* CodexUsageMapperTests.swift */,
 				1A100012000000000000012 /* CodexAPIServiceTests.swift */,
 				1A100014000000000000014 /* CodexUsageRefreshCoordinatorTests.swift */,
+				1A300004000000000000004 /* FileCredentialStoreTests.swift */,
 			);
 			path = ClimeterTests;
 			sourceTree = "<group>";
@@ -273,6 +279,7 @@
 				1A200005000000000000005 /* CodexAPIService.swift in Sources */,
 				1A200007000000000000007 /* CodexUsageMapper.swift in Sources */,
 				1A200009000000000000009 /* CodexUsageRefreshCoordinator.swift in Sources */,
+				1A300001000000000000001 /* FileCredentialStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -285,6 +292,7 @@
 				1A10000F00000000000000F /* CodexUsageMapperTests.swift in Sources */,
 				1A100011000000000000011 /* CodexAPIServiceTests.swift in Sources */,
 				1A100013000000000000013 /* CodexUsageRefreshCoordinatorTests.swift in Sources */,
+				1A300003000000000000003 /* FileCredentialStoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

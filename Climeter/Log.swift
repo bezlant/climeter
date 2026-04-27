@@ -101,6 +101,7 @@ enum Log {
     static let api = DualLogger(category: "api")
     static let coordinator = DualLogger(category: "coordinator")
     static let profiles = DualLogger(category: "profiles")
+    static let fileStore = DualLogger(category: "file-store")
 
     /// Human-readable description for common keychain OSStatus codes.
     static func keychainStatus(_ status: OSStatus) -> String {
