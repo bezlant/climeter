@@ -25,6 +25,12 @@ class ProfileManager: ObservableObject {
             }
         }
     }
+    @Published var fileBasedStorage: Bool = false {
+        didSet {
+            guard oldValue != fileBasedStorage else { return }
+            migrateCredentialStorage(toFileBased: fileBasedStorage)
+        }
+    }
 
     @Published var autoSwitchEnabled: Bool = false {
         didSet { ProfileStore.saveAutoSwitchEnabled(autoSwitchEnabled) }
@@ -69,6 +75,7 @@ class ProfileManager: ObservableObject {
         autoSwitchEnabled = ProfileStore.loadAutoSwitchEnabled()
         autoSwitchThreshold = ProfileStore.loadAutoSwitchThreshold()
         codexEnabled = ProfileStore.loadCodexEnabled()
+        fileBasedStorage = ProfileStore.loadFileBasedStorage()
         Log.profiles.info("init: \(self.profiles.count) profiles, \(self.authenticatedProfileIDs.count) authenticated, cliActive=\(self.cliActiveProfileID?.uuidString ?? "none")")
         setupAllCoordinators()
         setupCodexCoordinator()
@@ -269,6 +276,23 @@ class ProfileManager: ObservableObject {
                     Log.profiles.info("backfill: set accountUUID for '\(profile.name)' → \(apiProfile.uuid)")
                 }
             }
+        }
+    }
+
+    private func migrateCredentialStorage(toFileBased: Bool) {
+        ProfileStore.saveFileBasedStorage(toFileBased)
+        Log.profiles.info("migrateCredentialStorage: toFileBased=\(toFileBased), \(cachedCredentials.count) credentials")
+
+        for (profileID, credential) in cachedCredentials {
+            try? ProfileStore.saveCredentialModel(credential, for: profileID)
+        }
+
+        if toFileBased {
+            for profileID in cachedCredentials.keys {
+                try? KeychainService.delete(for: profileID)
+            }
+        } else {
+            FileCredentialStore.deleteAll()
         }
     }
 
