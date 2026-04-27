@@ -248,8 +248,9 @@ class ProfileManager: ObservableObject {
             guard let stored = cachedCredentials[profile.id],
                   stored.accountUUID == nil else { continue }
             Log.profiles.info("detectCLI: resolving accountUUID for '\(profile.name)'...")
-            if let storedProfile = try? await ClaudeAPIService.fetchProfile(credential: stored) {
-                guard claudeEnabled, !Task.isCancelled else { return }
+            let storedProfile = try? await ClaudeAPIService.fetchProfile(credential: stored)
+            guard claudeEnabled, !Task.isCancelled else { return }
+            if let storedProfile {
                 var updated = stored
                 updated.accountUUID = storedProfile.uuid
                 cachedCredentials[profile.id] = updated
@@ -261,6 +262,8 @@ class ProfileManager: ObservableObject {
                 }
             }
         }
+
+        guard claudeEnabled, !Task.isCancelled else { return }
 
         // New account — assign to first unauthenticated profile or create one
         if let target = profiles.first(where: { !authenticatedProfileIDs.contains($0.id) }) {
