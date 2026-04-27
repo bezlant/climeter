@@ -24,6 +24,8 @@ class ProfileManager: ObservableObject {
                 stopCLIMonitoring()
                 cliIdentificationTask?.cancel()
                 cliIdentificationTask = nil
+                autoStartTask?.cancel()
+                autoStartTask = nil
                 backfillTasks.forEach { $0.cancel() }
                 backfillTasks.removeAll()
                 for profileID in Array(coordinators.keys) {
@@ -69,6 +71,7 @@ class ProfileManager: ObservableObject {
     private var hasResumedSinceLastSleep = false
     private var cliMonitorTimer: Timer?
     private var cliIdentificationTask: Task<Void, Never>?
+    private var autoStartTask: Task<Void, Never>?
     private var backfillTasks: [Task<Void, Never>] = []
 
     // Convenience for menu bar: usage data for CLI-active profile
@@ -194,6 +197,7 @@ class ProfileManager: ObservableObject {
 
         Log.profiles.info("detectCLI: credential changed, identifying account...")
 
+        cliIdentificationTask?.cancel()
         cliIdentificationTask = Task {
             await self.identifyAndSyncAccount(cliCredential)
         }
@@ -201,7 +205,7 @@ class ProfileManager: ObservableObject {
 
     @MainActor
     private func identifyAndSyncAccount(_ cliCredential: Credential) async {
-        guard claudeEnabled else { return }
+        guard claudeEnabled, !Task.isCancelled else { return }
         var credential = cliCredential
 
         // Refresh expired token before identifying account
@@ -212,19 +216,18 @@ class ProfileManager: ObservableObject {
             }
         }
 
-        guard claudeEnabled else { return }
+        guard claudeEnabled, !Task.isCancelled else { return }
 
         guard let apiProfile = try? await ClaudeAPIService.fetchProfile(credential: credential) else {
             Log.profiles.warning("detectCLI: fetchProfile failed")
-            // Fallback: bootstrap only (no authenticated profiles yet)
-            if !hasAnyAuthenticated {
+            if !Task.isCancelled, !hasAnyAuthenticated {
                 let target = profiles.first { !authenticatedProfileIDs.contains($0.id) } ?? profiles[0]
                 saveAndActivate(credential: credential, profileID: target.id)
             }
             return
         }
 
-        guard claudeEnabled else { return }
+        guard claudeEnabled, !Task.isCancelled else { return }
 
         credential.accountUUID = apiProfile.uuid
         Log.profiles.info("detectCLI: account=\(apiProfile.uuid) name=\(apiProfile.displayName)")
@@ -245,7 +248,7 @@ class ProfileManager: ObservableObject {
                   stored.accountUUID == nil else { continue }
             Log.profiles.info("detectCLI: resolving accountUUID for '\(profile.name)'...")
             if let storedProfile = try? await ClaudeAPIService.fetchProfile(credential: stored) {
-                guard claudeEnabled else { return }
+                guard claudeEnabled, !Task.isCancelled else { return }
                 var updated = stored
                 updated.accountUUID = storedProfile.uuid
                 cachedCredentials[profile.id] = updated
@@ -294,6 +297,7 @@ class ProfileManager: ObservableObject {
         guard !needsBackfill.isEmpty else { return }
         Log.profiles.info("backfill: \(needsBackfill.count) profiles need accountUUID")
 
+        backfillTasks.forEach { $0.cancel() }
         backfillTasks.removeAll()
         for profile in needsBackfill {
             guard let credential = cachedCredentials[profile.id] else { continue }
@@ -465,9 +469,10 @@ class ProfileManager: ObservableObject {
                 }
             },
             onAutoStart: { [weak self] credential in
-                guard self?.claudeEnabled == true,
-                      self?.cliActiveProfileID == profileID else { return }
-                Task {
+                guard let self, self.claudeEnabled,
+                      self.cliActiveProfileID == profileID else { return }
+                self.autoStartTask?.cancel()
+                self.autoStartTask = Task {
                     await ClaudeAPIService.startSession(credential: credential)
                 }
             }
