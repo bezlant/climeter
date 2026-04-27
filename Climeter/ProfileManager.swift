@@ -186,6 +186,8 @@ class ProfileManager: ObservableObject {
     private func processCLICredential(_ cliCredential: Credential?) {
         guard claudeEnabled, let cliCredential else { return }
 
+        cliIdentificationTask?.cancel()
+
         // Quick check: if tokens match CLI-active profile, nothing changed
         if let activeID = cliActiveProfileID,
            let cached = cachedCredentials[activeID] {
@@ -197,7 +199,6 @@ class ProfileManager: ObservableObject {
 
         Log.profiles.info("detectCLI: credential changed, identifying account...")
 
-        cliIdentificationTask?.cancel()
         cliIdentificationTask = Task {
             await self.identifyAndSyncAccount(cliCredential)
         }
@@ -306,8 +307,9 @@ class ProfileManager: ObservableObject {
                     Log.profiles.error("backfill: failed for '\(profile.name)'")
                     return
                 }
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
-                    guard self.claudeEnabled else { return }
+                    guard self.claudeEnabled, !Task.isCancelled else { return }
                     var updated = self.cachedCredentials[profile.id] ?? credential
                     updated.accountUUID = apiProfile.uuid
                     self.cachedCredentials[profile.id] = updated
