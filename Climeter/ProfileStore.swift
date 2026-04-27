@@ -7,6 +7,7 @@ enum ProfileStore {
     private static let autoSwitchEnabledKey = "autoSwitchEnabled"
     private static let autoSwitchThresholdKey = "autoSwitchThreshold"
     private static let codexEnabledKey = "codexEnabled"
+    private static let fileBasedStorageKey = "fileBasedCredentialStorage"
     private static let defaults = UserDefaults.standard
 
     static func loadProfiles() -> [Profile] {
@@ -88,17 +89,39 @@ enum ProfileStore {
         defaults.set(enabled, forKey: codexEnabledKey)
     }
 
-    // Raw string credential operations (Keychain stores raw JSON)
+    // MARK: - Storage Mode
+
+    static func loadFileBasedStorage() -> Bool {
+        defaults.bool(forKey: fileBasedStorageKey)
+    }
+
+    static func saveFileBasedStorage(_ enabled: Bool) {
+        defaults.set(enabled, forKey: fileBasedStorageKey)
+    }
+
+    // Raw string credential operations — routes to Keychain or file store
     static func saveCredential(_ sessionKey: String, for profileID: UUID) throws {
-        try KeychainService.save(sessionKey, for: profileID)
+        if loadFileBasedStorage() {
+            try FileCredentialStore.save(sessionKey, for: profileID)
+        } else {
+            try KeychainService.save(sessionKey, for: profileID)
+        }
     }
 
     static func loadCredential(for profileID: UUID) throws -> String? {
-        try KeychainService.read(for: profileID)
+        if loadFileBasedStorage() {
+            return FileCredentialStore.read(for: profileID)
+        } else {
+            return try KeychainService.read(for: profileID)
+        }
     }
 
     static func deleteCredential(for profileID: UUID) throws {
-        try KeychainService.delete(for: profileID)
+        if loadFileBasedStorage() {
+            try FileCredentialStore.delete(for: profileID)
+        } else {
+            try KeychainService.delete(for: profileID)
+        }
     }
 
     // Credential model convenience methods

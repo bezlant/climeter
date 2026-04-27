@@ -38,6 +38,7 @@
 		1A100013000000000000013 /* CodexUsageRefreshCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A100014000000000000014 /* CodexUsageRefreshCoordinatorTests.swift */; };
 		1A300003000000000000003 /* FileCredentialStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A300004000000000000004 /* FileCredentialStoreTests.swift */; };
 		1A300005000000000000005 /* CLISyncFileReadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A300006000000000000006 /* CLISyncFileReadTests.swift */; };
+		1A300007000000000000007 /* ProfileStoreStorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A300008000000000000008 /* ProfileStoreStorageTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -85,6 +86,7 @@
 		1A100014000000000000014 /* CodexUsageRefreshCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexUsageRefreshCoordinatorTests.swift; sourceTree = "<group>"; };
 		1A300004000000000000004 /* FileCredentialStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCredentialStoreTests.swift; sourceTree = "<group>"; };
 		1A300006000000000000006 /* CLISyncFileReadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLISyncFileReadTests.swift; sourceTree = "<group>"; };
+		1A300008000000000000008 /* ProfileStoreStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStoreStorageTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -165,6 +167,7 @@
 				1A100014000000000000014 /* CodexUsageRefreshCoordinatorTests.swift */,
 				1A300004000000000000004 /* FileCredentialStoreTests.swift */,
 				1A300006000000000000006 /* CLISyncFileReadTests.swift */,
+				1A300008000000000000008 /* ProfileStoreStorageTests.swift */,
 			);
 			path = ClimeterTests;
 			sourceTree = "<group>";
@@ -297,6 +300,7 @@
 				1A100013000000000000013 /* CodexUsageRefreshCoordinatorTests.swift in Sources */,
 				1A300003000000000000003 /* FileCredentialStoreTests.swift in Sources */,
 				1A300005000000000000005 /* CLISyncFileReadTests.swift in Sources */,
+				1A300007000000000000007 /* ProfileStoreStorageTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
