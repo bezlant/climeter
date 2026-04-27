@@ -23,13 +23,23 @@ struct PopoverView: View {
             // Content
             if (!shouldShowClaude || profileManager.authenticatedProfiles.isEmpty) && !shouldShowCodex {
                 VStack(spacing: 8) {
-                    Image(systemName: "person.crop.circle.badge.questionmark")
-                        .font(.system(size: 28))
-                        .foregroundColor(.secondary.opacity(0.5))
-                    Text("Run /login in Claude Code\nto connect an account")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
+                    if !shouldShowClaude && !shouldShowCodex {
+                        Image(systemName: "eye.slash")
+                            .font(.system(size: 28))
+                            .foregroundColor(.secondary.opacity(0.5))
+                        Text("Usage display is hidden.\nEnable providers in Settings.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    } else {
+                        Image(systemName: "person.crop.circle.badge.questionmark")
+                            .font(.system(size: 28))
+                            .foregroundColor(.secondary.opacity(0.5))
+                        Text("Run /login in Claude Code\nto connect an account")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
                 }
                 .padding(.vertical, 32)
             } else {
@@ -129,7 +139,7 @@ struct PopoverView: View {
 
                 Spacer()
 
-                if profileManager.hasAnyAuthenticated {
+                if (shouldShowClaude && profileManager.hasAnyAuthenticated) || shouldShowCodex {
                     HeaderButton(icon: "arrow.clockwise", help: "Refresh") {
                         profileManager.refresh()
                     }

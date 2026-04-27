@@ -175,7 +175,7 @@ class ProfileManager: ObservableObject {
     }
 
     private func processCLICredential(_ cliCredential: Credential?) {
-        guard let cliCredential else { return }
+        guard claudeEnabled, let cliCredential else { return }
 
         // Quick check: if tokens match CLI-active profile, nothing changed
         if let activeID = cliActiveProfileID,
@@ -195,6 +195,7 @@ class ProfileManager: ObservableObject {
 
     @MainActor
     private func identifyAndSyncAccount(_ cliCredential: Credential) async {
+        guard claudeEnabled else { return }
         var credential = cliCredential
 
         // Refresh expired token before identifying account
@@ -204,6 +205,8 @@ class ProfileManager: ObservableObject {
                 credential = refreshed
             }
         }
+
+        guard claudeEnabled else { return }
 
         guard let apiProfile = try? await ClaudeAPIService.fetchProfile(credential: credential) else {
             Log.profiles.warning("detectCLI: fetchProfile failed")
@@ -234,6 +237,7 @@ class ProfileManager: ObservableObject {
                   stored.accountUUID == nil else { continue }
             Log.profiles.info("detectCLI: resolving accountUUID for '\(profile.name)'...")
             if let storedProfile = try? await ClaudeAPIService.fetchProfile(credential: stored) {
+                guard claudeEnabled else { return }
                 var updated = stored
                 updated.accountUUID = storedProfile.uuid
                 cachedCredentials[profile.id] = updated
@@ -260,6 +264,7 @@ class ProfileManager: ObservableObject {
     }
 
     private func saveAndActivate(credential: Credential, profileID: UUID) {
+        guard claudeEnabled else { return }
         cachedCredentials[profileID] = credential
         try? ProfileStore.saveCredentialModel(credential, for: profileID)
         refreshAuthenticatedIDs()
@@ -289,6 +294,7 @@ class ProfileManager: ObservableObject {
                     return
                 }
                 await MainActor.run {
+                    guard self.claudeEnabled else { return }
                     var updated = self.cachedCredentials[profile.id] ?? credential
                     updated.accountUUID = apiProfile.uuid
                     self.cachedCredentials[profile.id] = updated
@@ -439,6 +445,7 @@ class ProfileManager: ObservableObject {
                 self?.cachedCredentials[profileID]
             },
             onCredentialRefreshed: { [weak self] refreshed in
+                guard self?.claudeEnabled == true else { return }
                 Log.profiles.info("[\(profileID)] credential refreshed, saving to app keychain...")
                 self?.cachedCredentials[profileID] = refreshed
                 try? ProfileStore.saveCredentialModel(refreshed, for: profileID)
@@ -448,7 +455,8 @@ class ProfileManager: ObservableObject {
                 }
             },
             onAutoStart: { [weak self] credential in
-                guard self?.cliActiveProfileID == profileID else { return }
+                guard self?.claudeEnabled == true,
+                      self?.cliActiveProfileID == profileID else { return }
                 Task {
                     await ClaudeAPIService.startSession(credential: credential)
                 }
