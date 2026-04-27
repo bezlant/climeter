@@ -11,6 +11,7 @@ class UsageRefreshCoordinator: ObservableObject {
     private let credentialProvider: () -> Credential?
     private let onCredentialRefreshed: ((Credential) -> Void)?
     private var timer: Timer?
+    private var activeTask: Task<Void, Never>?
     static let baseInterval: TimeInterval = 180.0
     private var currentInterval: TimeInterval = UsageRefreshCoordinator.baseInterval
     // IMPORTANT: max backoff must stay high — Anthropic's /api/oauth/usage
@@ -60,6 +61,8 @@ class UsageRefreshCoordinator: ObservableObject {
     func stopPolling() {
         timer?.invalidate()
         timer = nil
+        activeTask?.cancel()
+        activeTask = nil
     }
 
     func refresh() {
@@ -80,15 +83,17 @@ class UsageRefreshCoordinator: ObservableObject {
 
         isLoading = true
 
-        Task { @MainActor in
+        activeTask = Task { @MainActor in
             defer { self.isLoading = false }
 
             if credential.isExpired {
                 Log.coordinator.info("[\(self.profileID)] token expired, starting recovery...")
                 do {
                     credential = try await self.recoverCredential(credential)
+                    guard !Task.isCancelled else { return }
                     Log.coordinator.info("[\(self.profileID)] token recovery succeeded")
                 } catch {
+                    guard !Task.isCancelled else { return }
                     Log.coordinator.error("[\(self.profileID)] token recovery failed: \(error)")
                     self.errorMessage = Self.describeError(error, context: "token refresh")
                     return
@@ -97,6 +102,7 @@ class UsageRefreshCoordinator: ObservableObject {
 
             do {
                 let fetchedData = try await ClaudeAPIService.fetchUsage(credential: credential)
+                guard !Task.isCancelled else { return }
                 Log.coordinator.info("[\(self.profileID)] usage fetch OK — 5h: \(fetchedData.fiveHour.utilization)%")
                 self.usageData = fetchedData
                 self.errorMessage = nil
@@ -104,9 +110,7 @@ class UsageRefreshCoordinator: ObservableObject {
                 self.checkAutoStart(credential: credential, usage: fetchedData)
                 self.stepDownBackoff()
             } catch {
-                // Access token rejected server-side (e.g. revoked by a new
-                // /login between the proactive sync and this API call) —
-                // recover and retry once.
+                guard !Task.isCancelled else { return }
                 guard case .httpError(401) = error as? ClaudeAPIError else {
                     Log.coordinator.error("[\(self.profileID)] usage fetch failed: \(error)")
                     self.handleFetchError(error)
@@ -115,7 +119,9 @@ class UsageRefreshCoordinator: ObservableObject {
                 Log.coordinator.warning("[\(self.profileID)] got 401, attempting recovery...")
                 do {
                     credential = try await self.recoverCredential(credential)
+                    guard !Task.isCancelled else { return }
                     let fetchedData = try await ClaudeAPIService.fetchUsage(credential: credential)
+                    guard !Task.isCancelled else { return }
                     Log.coordinator.info("[\(self.profileID)] retry after 401 succeeded — 5h: \(fetchedData.fiveHour.utilization)%")
                     self.usageData = fetchedData
                     self.errorMessage = nil
@@ -123,6 +129,7 @@ class UsageRefreshCoordinator: ObservableObject {
                     self.checkAutoStart(credential: credential, usage: fetchedData)
                     self.stepDownBackoff()
                 } catch {
+                    guard !Task.isCancelled else { return }
                     Log.coordinator.error("[\(self.profileID)] retry after 401 failed: \(error)")
                     self.handleFetchError(error)
                 }
@@ -136,14 +143,14 @@ class UsageRefreshCoordinator: ObservableObject {
         do {
             Log.coordinator.info("[\(self.profileID)] attempting token refresh via API...")
             let refreshed = try await ClaudeAPIService.refreshToken(credential)
+            try Task.checkCancellation()
             Log.coordinator.info("[\(self.profileID)] token refresh succeeded, writing back...")
             onCredentialRefreshed?(refreshed)
             return refreshed
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             Log.coordinator.warning("[\(self.profileID)] token refresh failed: \(error) — trying CLI keychain fallback")
-            // Refresh token may be stale — read CLI keychain for a newer one.
-            // This is the only place we read the CLI keychain during polling
-            // (not every cycle) to avoid repeated keychain password prompts.
             syncCLICredential?()
             guard let fresh = credentialProvider(),
                   fresh.refreshToken != credential.refreshToken else {
@@ -154,6 +161,7 @@ class UsageRefreshCoordinator: ObservableObject {
             if fresh.isExpired {
                 Log.coordinator.info("[\(self.profileID)] CLI credential also expired, refreshing it...")
                 let refreshed = try await ClaudeAPIService.refreshToken(fresh)
+                try Task.checkCancellation()
                 onCredentialRefreshed?(refreshed)
                 return refreshed
             }

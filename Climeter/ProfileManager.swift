@@ -218,6 +218,8 @@ class ProfileManager: ObservableObject {
             return
         }
 
+        guard claudeEnabled else { return }
+
         credential.accountUUID = apiProfile.uuid
         Log.profiles.info("detectCLI: account=\(apiProfile.uuid) name=\(apiProfile.displayName)")
 
