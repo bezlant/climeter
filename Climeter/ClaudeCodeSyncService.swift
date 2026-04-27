@@ -6,12 +6,38 @@ enum ClaudeCodeSyncService {
     private static let account = NSUserName()
 
     static func readCLICredential() -> Credential? {
+        if let fileCred = readCLICredentialFromFile() {
+            return fileCred
+        }
         guard let raw = readCLICredentialRaw() else { return nil }
         let credential = Credential(jsonString: raw)
         if credential == nil {
             Log.cliSync.warning("CLI keychain data read OK but failed to parse as Credential")
         }
         return credential
+    }
+
+    static func readCLICredentialFromFile(
+        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser
+    ) -> Credential? {
+        let claudeDir = homeDirectory.appendingPathComponent(".claude")
+        let candidates = [
+            claudeDir.appendingPathComponent(".credentials.json"),
+            claudeDir.appendingPathComponent("credentials.json")
+        ]
+
+        for path in candidates {
+            guard FileManager.default.fileExists(atPath: path.path),
+                  let data = try? Data(contentsOf: path),
+                  let str = String(data: data, encoding: .utf8) else {
+                continue
+            }
+            if let cred = Credential(jsonString: str) {
+                Log.cliSync.info("readCLICredentialFromFile: success from \(path.lastPathComponent)")
+                return cred
+            }
+        }
+        return nil
     }
 
     static func readCLICredentialRaw() -> String? {
