@@ -150,6 +150,7 @@ class UsageRefreshCoordinator: ObservableObject {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
+            try Task.checkCancellation()
             Log.coordinator.warning("[\(self.profileID)] token refresh failed: \(error) — trying CLI keychain fallback")
             syncCLICredential?()
             guard let fresh = credentialProvider(),
@@ -165,6 +166,7 @@ class UsageRefreshCoordinator: ObservableObject {
                 onCredentialRefreshed?(refreshed)
                 return refreshed
             }
+            try Task.checkCancellation()
             Log.coordinator.info("[\(self.profileID)] using fresh CLI credential directly")
             onCredentialRefreshed?(fresh)
             return fresh

@@ -22,6 +22,10 @@ class ProfileManager: ObservableObject {
                 startCLIMonitoring()
             } else {
                 stopCLIMonitoring()
+                cliIdentificationTask?.cancel()
+                cliIdentificationTask = nil
+                backfillTasks.forEach { $0.cancel() }
+                backfillTasks.removeAll()
                 for profileID in Array(coordinators.keys) {
                     teardownCoordinator(for: profileID)
                 }
@@ -64,6 +68,8 @@ class ProfileManager: ObservableObject {
     private let powerMonitor = PowerStateMonitor()
     private var hasResumedSinceLastSleep = false
     private var cliMonitorTimer: Timer?
+    private var cliIdentificationTask: Task<Void, Never>?
+    private var backfillTasks: [Task<Void, Never>] = []
 
     // Convenience for menu bar: usage data for CLI-active profile
     var cliActiveUsageData: UsageData? {
@@ -188,7 +194,7 @@ class ProfileManager: ObservableObject {
 
         Log.profiles.info("detectCLI: credential changed, identifying account...")
 
-        Task {
+        cliIdentificationTask = Task {
             await self.identifyAndSyncAccount(cliCredential)
         }
     }
@@ -288,9 +294,10 @@ class ProfileManager: ObservableObject {
         guard !needsBackfill.isEmpty else { return }
         Log.profiles.info("backfill: \(needsBackfill.count) profiles need accountUUID")
 
+        backfillTasks.removeAll()
         for profile in needsBackfill {
             guard let credential = cachedCredentials[profile.id] else { continue }
-            Task {
+            let task = Task {
                 guard let apiProfile = try? await ClaudeAPIService.fetchProfile(credential: credential) else {
                     Log.profiles.error("backfill: failed for '\(profile.name)'")
                     return
@@ -304,6 +311,7 @@ class ProfileManager: ObservableObject {
                     Log.profiles.info("backfill: set accountUUID for '\(profile.name)' → \(apiProfile.uuid)")
                 }
             }
+            backfillTasks.append(task)
         }
     }
 
