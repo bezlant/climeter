@@ -24,6 +24,7 @@ Claude Code and Codex do not keep their usage limits visible while you work. You
 - **Claude auto-switch** — when one Claude account hits 95% utilization, automatically activates the next
 - **Codex usage tracking** — shows OpenAI Codex session and weekly plan-limit windows
 - **CLI sync** — picks up Claude Code `/login` credentials and Codex CLI login state
+- **Peak hours indicator** — shows when Claude rate limits are tighter (5–11 AM PT, weekdays) with countdown in your local timezone
 - **Per-provider toggles** — show or hide Claude and Codex independently
 - **File-based credential storage** — optional alternative to macOS Keychain, reduces security prompts
 - **Auto-update check** — notifies you when a new version is available
