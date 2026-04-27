@@ -279,21 +279,57 @@ class ProfileManager: ObservableObject {
         }
     }
 
-    private func migrateCredentialStorage(toFileBased: Bool) {
-        ProfileStore.saveFileBasedStorage(toFileBased)
-        Log.profiles.info("migrateCredentialStorage: toFileBased=\(toFileBased), \(cachedCredentials.count) credentials")
+    static func migrateCredentialStorage(
+        toFileBased: Bool,
+        cachedCredentials: [UUID: Credential],
+        saveStorageMode: (Bool) -> Void,
+        saveCredential: (Credential, UUID) throws -> Void,
+        deleteKeychainCredential: (UUID) throws -> Void,
+        deleteFileCredentials: () -> Void,
+        logSaveFailure: (UUID, Error) -> Void
+    ) {
+        saveStorageMode(toFileBased)
 
+        var migratedProfileIDs = Set<UUID>()
         for (profileID, credential) in cachedCredentials {
-            try? ProfileStore.saveCredentialModel(credential, for: profileID)
+            do {
+                try saveCredential(credential, profileID)
+                migratedProfileIDs.insert(profileID)
+            } catch {
+                logSaveFailure(profileID, error)
+            }
         }
 
         if toFileBased {
-            for profileID in cachedCredentials.keys {
-                try? KeychainService.delete(for: profileID)
+            for profileID in migratedProfileIDs {
+                try? deleteKeychainCredential(profileID)
             }
-        } else {
-            FileCredentialStore.deleteAll()
+        } else if !cachedCredentials.isEmpty,
+                  migratedProfileIDs.count == cachedCredentials.count {
+            deleteFileCredentials()
         }
+    }
+
+    private func migrateCredentialStorage(toFileBased: Bool) {
+        Log.profiles.info("migrateCredentialStorage: toFileBased=\(toFileBased), \(cachedCredentials.count) credentials")
+
+        Self.migrateCredentialStorage(
+            toFileBased: toFileBased,
+            cachedCredentials: cachedCredentials,
+            saveStorageMode: { ProfileStore.saveFileBasedStorage($0) },
+            saveCredential: { credential, profileID in
+                try ProfileStore.saveCredentialModel(credential, for: profileID)
+            },
+            deleteKeychainCredential: { profileID in
+                try KeychainService.delete(for: profileID)
+            },
+            deleteFileCredentials: {
+                FileCredentialStore.deleteAll()
+            },
+            logSaveFailure: { profileID, error in
+                Log.profiles.error("migrateCredentialStorage: failed to save \(profileID): \(error)")
+            }
+        )
     }
 
     private func setupPowerMonitor() {
