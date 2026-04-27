@@ -6,6 +6,7 @@ enum ProfileStore {
     private static let cliActiveProfileIDKey = "cliActiveProfileID"
     private static let autoSwitchEnabledKey = "autoSwitchEnabled"
     private static let autoSwitchThresholdKey = "autoSwitchThreshold"
+    private static let claudeEnabledKey = "claudeEnabled"
     private static let codexEnabledKey = "codexEnabled"
     private static let fileBasedStorageKey = "fileBasedCredentialStorage"
     private static let defaults = UserDefaults.standard
@@ -77,6 +78,16 @@ enum ProfileStore {
 
     static func saveAutoSwitchThreshold(_ threshold: Double) {
         defaults.set(threshold, forKey: autoSwitchThresholdKey)
+    }
+
+    // MARK: - Claude Settings
+
+    static func loadClaudeEnabled() -> Bool {
+        defaults.object(forKey: claudeEnabledKey) as? Bool ?? true
+    }
+
+    static func saveClaudeEnabled(_ enabled: Bool) {
+        defaults.set(enabled, forKey: claudeEnabledKey)
     }
 
     // MARK: - Codex Settings

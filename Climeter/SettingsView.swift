@@ -36,6 +36,7 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
+                            .help(FileCredentialStore.credentialsURL().path)
                     }
                 }
 
@@ -45,6 +46,8 @@ struct SettingsView: View {
             }
 
             Section("Claude (Anthropic)") {
+                Toggle("Show Claude usage", isOn: $profileManager.claudeEnabled)
+
                 HStack {
                     Text("Credentials")
                     Spacer()
@@ -69,6 +72,7 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
+                        .help(CodexCredentialStore.authFileURL().path)
                 }
 
                 if let error = profileManager.codexErrorMessage {
@@ -157,7 +161,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 350, height: 590)
+        .frame(width: 350, height: 620)
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {

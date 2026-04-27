@@ -12,6 +12,22 @@ class ProfileManager: ObservableObject {
     @Published var codexUsageData: UsageData?
     @Published var codexErrorMessage: String?
     @Published var codexLastSuccessAt: Date?
+    @Published var claudeEnabled: Bool = true {
+        didSet {
+            ProfileStore.saveClaudeEnabled(claudeEnabled)
+            if claudeEnabled {
+                refreshAuthenticatedIDs()
+                setupAllCoordinators()
+                backfillAccountUUIDs()
+                startCLIMonitoring()
+            } else {
+                stopCLIMonitoring()
+                for profileID in Array(coordinators.keys) {
+                    teardownCoordinator(for: profileID)
+                }
+            }
+        }
+    }
     @Published var codexEnabled: Bool = true {
         didSet {
             ProfileStore.saveCodexEnabled(codexEnabled)
@@ -75,15 +91,18 @@ class ProfileManager: ObservableObject {
         autoSwitchEnabled = ProfileStore.loadAutoSwitchEnabled()
         autoSwitchThreshold = ProfileStore.loadAutoSwitchThreshold()
         codexEnabled = ProfileStore.loadCodexEnabled()
+        claudeEnabled = ProfileStore.loadClaudeEnabled()
         fileBasedStorage = ProfileStore.loadFileBasedStorage()
         Log.profiles.info("init: \(self.profiles.count) profiles, \(self.authenticatedProfileIDs.count) authenticated, cliActive=\(self.cliActiveProfileID?.uuidString ?? "none")")
-        setupAllCoordinators()
+        if claudeEnabled {
+            setupAllCoordinators()
+            backfillAccountUUIDs()
+            startCLIMonitoring()
+        }
         setupCodexCoordinator()
         if codexEnabled {
             codexCoordinator.startPolling()
         }
-        backfillAccountUUIDs()
-        startCLIMonitoring()
         setupPowerMonitor()
     }
 
@@ -146,6 +165,7 @@ class ProfileManager: ObservableObject {
     }
 
     private func detectCLIAccountChange() {
+        guard claudeEnabled else { return }
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let cliCredential = ClaudeCodeSyncService.readCLICredential()
             DispatchQueue.main.async {
@@ -365,24 +385,25 @@ class ProfileManager: ObservableObject {
         guard !hasResumedSinceLastSleep else { return }
         hasResumedSinceLastSleep = true
         Log.profiles.info("resumeAfterWake: re-reading keychain and restarting coordinators")
-        refreshAuthenticatedIDs()
-        Log.profiles.info("resumeAfterWake: \(self.authenticatedProfileIDs.count) authenticated")
 
-        // Restart coordinators for any profiles that now have credentials
-        for profile in profiles where authenticatedProfileIDs.contains(profile.id) {
-            if coordinators[profile.id] == nil {
-                setupCoordinator(for: profile.id)
-            } else {
-                coordinators[profile.id]?.startPolling()
+        if claudeEnabled {
+            refreshAuthenticatedIDs()
+            Log.profiles.info("resumeAfterWake: \(self.authenticatedProfileIDs.count) authenticated")
+
+            for profile in profiles where authenticatedProfileIDs.contains(profile.id) {
+                if coordinators[profile.id] == nil {
+                    setupCoordinator(for: profile.id)
+                } else {
+                    coordinators[profile.id]?.startPolling()
+                }
             }
+
+            detectCLIAccountChange()
         }
 
         if codexEnabled {
             codexCoordinator.startPolling()
         }
-
-        // Re-check CLI keychain for any credential changes during sleep
-        detectCLIAccountChange()
     }
 
     // MARK: - Usage Coordinators
@@ -467,7 +488,8 @@ class ProfileManager: ObservableObject {
     // MARK: - Auto-Switch
 
     private func checkAutoSwitch() {
-        guard autoSwitchEnabled,
+        guard claudeEnabled,
+              autoSwitchEnabled,
               let activeID = cliActiveProfileID,
               let activeData = allUsageData[activeID],
               activeData.fiveHour.utilization >= autoSwitchThreshold else { return }
@@ -491,8 +513,10 @@ class ProfileManager: ObservableObject {
     // MARK: - Public API
 
     func refresh() {
-        for coordinator in coordinators.values {
-            coordinator.refresh()
+        if claudeEnabled {
+            for coordinator in coordinators.values {
+                coordinator.refresh()
+            }
         }
         if codexEnabled {
             codexCoordinator.refresh()

@@ -8,6 +8,10 @@ struct PopoverView: View {
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
+    private var shouldShowClaude: Bool {
+        profileManager.claudeEnabled
+    }
+
     private var shouldShowCodex: Bool {
         profileManager.codexEnabled
             || profileManager.codexUsageData != nil
@@ -17,7 +21,7 @@ struct PopoverView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Content
-            if profileManager.authenticatedProfiles.isEmpty && !shouldShowCodex {
+            if (!shouldShowClaude || profileManager.authenticatedProfiles.isEmpty) && !shouldShowCodex {
                 VStack(spacing: 8) {
                     Image(systemName: "person.crop.circle.badge.questionmark")
                         .font(.system(size: 28))
@@ -31,30 +35,32 @@ struct PopoverView: View {
             } else {
                 ScrollView {
                     VStack(spacing: 0) {
-                        ForEach(Array(profileManager.authenticatedProfiles.enumerated()), id: \.element.id) { index, profile in
-                            ProfileCard(
-                                profile: profile,
-                                usageData: profileManager.allUsageData[profile.id],
-                                errorMessage: profileManager.allErrors[profile.id],
-                                lastSuccessAt: profileManager.allLastSuccess[profile.id],
-                                isCLIActive: profileManager.cliActiveProfileID == profile.id,
-                                showProfileName: profileManager.authenticatedProfiles.count > 1,
-                                currentTime: currentTime,
-                                onActivate: {
-                                    profileManager.activateForCLI(profileID: profile.id)
-                                }
-                            )
-                            .padding(10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.4))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 0.5)
-                            )
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
+                        if shouldShowClaude {
+                            ForEach(Array(profileManager.authenticatedProfiles.enumerated()), id: \.element.id) { index, profile in
+                                ProfileCard(
+                                    profile: profile,
+                                    usageData: profileManager.allUsageData[profile.id],
+                                    errorMessage: profileManager.allErrors[profile.id],
+                                    lastSuccessAt: profileManager.allLastSuccess[profile.id],
+                                    isCLIActive: profileManager.cliActiveProfileID == profile.id,
+                                    showProfileName: profileManager.authenticatedProfiles.count > 1,
+                                    currentTime: currentTime,
+                                    onActivate: {
+                                        profileManager.activateForCLI(profileID: profile.id)
+                                    }
+                                )
+                                .padding(10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.4))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 0.5)
+                                )
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                            }
                         }
 
                         if shouldShowCodex {
